@@ -19,7 +19,11 @@ public class Venue {
 
     public void addShow(String name, Date time) { shows.add(new Show(name, time, numRows, numCols)); }
 
-    public void cancelShow(int showID) { shows.removeIf(show -> show.getID() == showID); }
+    public void cancelShow(int showID) {
+        if (!shows.removeIf(show -> show.getID() == showID)) {
+            throw new NoSuchElementException("The 'showID' does not exist");
+        }
+    }
 
     public Show getShow(int showID) {
         for (Show show : shows) {
@@ -34,7 +38,11 @@ public class Venue {
 
     public void addPromotion(Promotion promotion) { promotions.add(promotion); }
 
-    public void removePromotion(int promotionID) { promotions.removeIf(promotion -> promotion.getID() == promotionID); }
+    public void removePromotion(int promotionID) {
+        if (!promotions.removeIf(promotion -> promotion.getID() == promotionID)) {
+            throw new NoSuchElementException("The 'promotionID' does not exist");
+        }
+    }
 
     public Promotion getPromotion(int promotionID) {
         for (Promotion promotion : promotions) {
