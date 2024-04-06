@@ -1,7 +1,7 @@
 public class Contract {
-    private float commission;
-    private int showID;
-    private int[] seats;
+    private final float commission;
+    private final int showID;
+    private final int[] seats;
 
     public Contract(float commission, int showID, int[] seats) {
         this.commission = commission;
@@ -9,5 +9,9 @@ public class Contract {
         this.seats = seats;
     }
 
+    public float getCommission() { return commission; }
 
+    public int getShowID() { return showID; }
+
+    public int[] getSeats() { return seats; }
 }
