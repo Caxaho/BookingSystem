@@ -1,3 +1,5 @@
+import java.security.InvalidParameterException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -146,13 +148,11 @@ public class Main {
 
     static ProgramState state = ProgramState.START;
     static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 27, 20);
-    static ArrayList<Customer> customers = new ArrayList<Customer>();
-    static ArrayList<Admin> admins = new ArrayList<Admin>();
-    static ArrayList<Agent> agents = new ArrayList<Agent>();
-    static ArrayList<VenueManager> managers = new ArrayList<VenueManager>();
-
+    static ArrayList<User> users = new ArrayList<User>();
+    static User currentUser;
     static Scanner input = new Scanner(System.in);
     public static void main(String[] args) {
+        users.add(new VenueManager("wef","wef","wef@wef.com", "wefwef"));
         boolean exit = false; //Boolean for main loop control
         int choice; //Holds choice for each state's function return
         while (!exit) {
@@ -163,12 +163,13 @@ public class Main {
                         state = choice < 2 ? state.nextState(choice) : state.previousState();
                     } catch (IllegalArgumentException e) {
                         System.out.println("Invalid input, please try again!");
-
                     }
                     break;
                 case REQUEST_LOGIN:
+                    state = LoginChoice() ? state.nextState(0) : state.previousState();
                     break;
                 case REGISTRATION:
+                    state = RegistrationChoice() ? state.nextState(0) : state.previousState();
                     break;
                 default:
                     exit = true;
@@ -176,6 +177,7 @@ public class Main {
         }
         System.out.println(exit);
         System.out.println(state);
+        System.out.println(currentUser);
     }
 
     public static void PrintChoices(boolean showOptionString, String... args) {
@@ -189,8 +191,10 @@ public class Main {
 
     public static boolean ValidDateOfBirth(String dob) {
         if (dob.matches("^\\d{1,2}\\/\\d{1,2}\\/\\d{4}$")) {
+            SimpleDateFormat inputDOB = new SimpleDateFormat("dd/MM/yyyy"); // Created to validate the date
+            inputDOB.setLenient(false);
             try {
-                SimpleDateFormat inputDOB = new SimpleDateFormat(dob); // Created to validate the date
+                inputDOB.parse(dob); // Parsing date (ParseException raised if invalid)
                 // Validating age
                 Calendar inputCal = inputDOB.getCalendar(); // Convert input date to Calendar object
                 Calendar cal = Calendar.getInstance(); // Get current date
@@ -198,7 +202,7 @@ public class Main {
                 if (inputCal.before(cal)) {
                     return true; // Valid date
                 }
-            } catch (IllegalArgumentException ignored) {
+            } catch (ParseException ignored) {
             }
         }
         return false; // Returns false if 'dob' given was of the wrong format, not a real date, or below the minimum age requirement
@@ -210,6 +214,16 @@ public class Main {
 
     public static boolean ValidPass(String pass) {
         return pass.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+    }
+
+    public static User Login(String username, String password) {
+        // Checking for customer profile
+        for (User user : users) {
+            if (user.getUsername().equals(username) && user.checkPW(password)) {
+                return user;
+            }
+        }
+        throw new InvalidParameterException();
     }
 
     public static int StartChoice() {
@@ -225,8 +239,6 @@ public class Main {
         }
         return -1;
     }
-
-
 
     public static boolean RegistrationChoice() {
         String[] accountRequirements = new String[]{
@@ -250,8 +262,9 @@ public class Main {
             } else {
                 switch (stage) {
                     case 0: // Full Name
-                        if (line.matches("^[a-z ,.'-]+$")) {
-                            accountDetails[stage] = line;
+                        String lowerCaseName = line.toLowerCase();
+                        if (lowerCaseName.matches("^[a-z ,.'-]+$")) {
+                            accountDetails[stage] = lowerCaseName;
                             stage += 1;
                         } else {
                             System.out.println("Please enter a valid name.");
@@ -278,7 +291,7 @@ public class Main {
                             accountDetails[stage] = line;
                             stage += 1;
                         } else {
-                            System.out.println("Please enter a valid email address.");
+                            System.out.println("Please enter a valid mobile number.");
                         }
                         break;
                     case 4: // Date of Birth
@@ -300,6 +313,7 @@ public class Main {
                     case 6: // Password
                         if (ValidPass(line)) {
                             accountDetails[stage] = line;
+                            stage += 1;
                         } else {
                             System.out.println("Please enter a valid password. It must contain a minimum of eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character.");
                         }
@@ -309,7 +323,7 @@ public class Main {
         }
 
         // Return true if successfully added to ArrayList, false otherwise
-        return customers.add(new Customer(
+        return users.add(new Customer(
                 accountDetails[0], // Name
                 accountDetails[1], // Username
                 accountDetails[2], // Email Address
@@ -318,4 +332,34 @@ public class Main {
                 new SimpleDateFormat(accountDetails[4]), // DOB
                 accountDetails[5])); // Home Address
     }
+
+    public static boolean LoginChoice() {
+        int stage = 0;
+        String username = "";
+        String pass = "";
+        while (stage < 2) {
+            PrintChoices(true,"Exit (e)", String.format("Enter %s:", stage == 0 ? "username" : "password"));
+            String line = input.nextLine();
+            if (line.equals("e")) {
+                return false;
+            } else {
+                if (stage == 0) {
+                    username = line;
+                    stage += 1;
+                } else {
+                    pass = line;
+                    stage += 1;
+                }
+            }
+        }
+        // Attempt logon
+        try {
+            currentUser = Login(username, pass);
+            return true;
+        } catch (InvalidParameterException e) {
+            System.out.println("Username/Password was incorrect.");
+        }
+        return false;
+    }
 }
+
