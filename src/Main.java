@@ -16,13 +16,15 @@ public class Main {
                         return REQUEST_LOGIN;
                     case 1:
                         return REGISTRATION;
+                    case 2:
+                        return EXIT;
                 }
                 throw new IllegalArgumentException("choice out of bounds");
             }
 
             @Override
             public ProgramState previousState() {
-                return EXIT;
+                return START;
             }
         },
         REGISTRATION {
@@ -151,8 +153,9 @@ public class Main {
     static ArrayList<User> users = new ArrayList<User>();
     static User currentUser;
     static Scanner input = new Scanner(System.in);
+
     public static void main(String[] args) {
-        users.add(new VenueManager("wef","wef","wef@wef.com", "wefwef"));
+        users.add(new Customer("wef","wef","wef@wef.com", "07399526266", "wefwef", new SimpleDateFormat("dd/MM/yyyy"), "1 Dumb place, anywhere, ox26 6eb"));
         boolean exit = false; //Boolean for main loop control
         int choice; //Holds choice for each state's function return
         while (!exit) {
@@ -160,7 +163,7 @@ public class Main {
                 case START:
                     try {
                         choice = StartChoice();
-                        state = choice < 2 ? state.nextState(choice) : state.previousState();
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
                     } catch (IllegalArgumentException e) {
                         System.out.println("Invalid input, please try again!");
                     }
@@ -170,6 +173,14 @@ public class Main {
                     break;
                 case REGISTRATION:
                     state = RegistrationChoice() ? state.nextState(0) : state.previousState();
+                    break;
+                case LOGGED_IN:
+                    try {
+                        choice = LoggedInChoice();
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    } catch (IllegalArgumentException e) {
+                        System.out.println("Invalid input, please try again!");
+                    }
                     break;
                 default:
                     exit = true;
@@ -209,7 +220,7 @@ public class Main {
     }
 
     public static boolean ValidUsername(String username) {
-        return username.matches("^[a-z0-9_-]+$");
+        return username.matches("^[a-z0-9_-]{2,}$");
     }
 
     public static boolean ValidPass(String pass) {
@@ -323,14 +334,22 @@ public class Main {
         }
 
         // Return true if successfully added to ArrayList, false otherwise
-        return users.add(new Customer(
+        if (users.add(new Customer(
                 accountDetails[0], // Name
                 accountDetails[1], // Username
                 accountDetails[2], // Email Address
                 accountDetails[3], // Mobile Number
                 accountDetails[6], // Password
                 new SimpleDateFormat(accountDetails[4]), // DOB
-                accountDetails[5])); // Home Address
+                accountDetails[5]))) // Home Address
+        {
+            try {
+                currentUser = Login(accountDetails[1], accountDetails[6]);
+                return true;
+            } catch (InvalidParameterException ignored) {
+            }
+        }
+        return false;
     }
 
     public static boolean LoginChoice() {
@@ -360,6 +379,41 @@ public class Main {
             System.out.println("Username/Password was incorrect.");
         }
         return false;
+    }
+
+    public static int LoggedInChoice() {
+        User.AccountType userType = currentUser.getAccountType();
+        int choice = -1;
+        // Output choices based on user type
+        switch (userType) {
+            case CUSTOMER:
+                PrintChoices(true,"Book Show (b)", "Cancel Show (c)", "Logout (e)");
+                break;
+            case ADMIN:
+                break;
+            case AGENT:
+                break;
+            case VENUE_MANAGER:
+                break;
+        }
+        // Get input
+        String line = input.nextLine();
+        switch (line) {
+            case "e":
+                choice = -1;
+                break;
+            case "b":
+                choice = 0;
+                break;
+            case "c":
+                choice = 1;
+                break;
+        }
+        // Ensures only the choices available to the current user are selectable
+        if (!(userType == User.AccountType.CUSTOMER && choice <= 1 && choice >= -1)) {
+            throw new IllegalArgumentException("User not permitted to perform this action.");
+        }
+        return choice;
     }
 }
 
