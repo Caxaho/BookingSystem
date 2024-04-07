@@ -7,8 +7,8 @@ public class Booking {
     public Booking(int showID, String[] seats) {
         this.showID = showID;
         this.seats = seats;
-        bookingCount += 1;
         bookingID = bookingCount;
+        bookingCount += 1;
     }
 
     public int getID() { return bookingID; }

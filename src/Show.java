@@ -1,4 +1,4 @@
-import java.util.Date;
+import java.util.Calendar;
 import java.util.NoSuchElementException;
 
 public class Show {
@@ -6,18 +6,18 @@ public class Show {
     private final int showID;
     private static int showCount;
     private int minAge;
-    private Date time;
+    private Calendar time;
     private final Seat[] seats;
     private Promotion promotion;
     private float minSeatPrice = 10.0f;
     private int maxSeatsPerUser = 50;
 
-    public Show(String name, Date time, int numRows, int numCols) {
+    public Show(String name, Calendar time, int numRows, int numCols) {
         /* Initializing Variables */
         this.name = name;
         this.time = time;
-        showCount += 1;
         showID = showCount;
+        showCount += 1;
         // Creating and initializing array with letter names of each row
         String[] rowNames = new String[numCols];
         for (int i = 1; i <= numCols; i++) {
@@ -52,9 +52,9 @@ public class Show {
 
     public void setMinAge(int age) { this.minAge = age; }
 
-    public Date getTime() { return time; }
+    public Calendar getTime() { return time; }
 
-    public void setTime(Date time) { this.time = time; }
+    public void setTime(Calendar time) { this.time = time; }
 
     public float getMinSeatPrice() { return minSeatPrice; }
 
@@ -84,5 +84,9 @@ public class Show {
             }
         }
         throw new NoSuchElementException("The 'seatID' requested does not exist");
+    }
+
+    public Seat[] getSeats() {
+        return seats;
     }
 }

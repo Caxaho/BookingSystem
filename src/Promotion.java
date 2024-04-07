@@ -7,8 +7,8 @@ public class Promotion {
     public Promotion(String name, int[] prices) {
         this.name = name;
         this.prices = prices;
-        promotionCount += 1;
         promotionID = promotionCount;
+        promotionCount += 1;
     }
 
     public String getName() { return name; }

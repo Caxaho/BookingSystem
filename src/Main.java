@@ -74,13 +74,15 @@ public class Main {
                         return AUTOMATIC_SELECTION;
                     case 1:
                         return INTERACTIVE_SELECTION;
+                    case 2:
+                        return LOGGED_IN;
                 }
                 throw new IllegalArgumentException("choice out of bounds");
             }
 
             @Override
             public ProgramState previousState() {
-                return LOGGED_IN;
+                return SELECT_SHOW;
             }
         },
         AUTOMATIC_SELECTION {
@@ -155,9 +157,13 @@ public class Main {
     static Scanner input = new Scanner(System.in);
 
     public static void main(String[] args) {
-        users.add(new Customer("wef","wef","wef@wef.com", "07399526266", "wefwef", new SimpleDateFormat("dd/MM/yyyy"), "1 Dumb place, anywhere, ox26 6eb"));
-        boolean exit = false; //Boolean for main loop control
-        int choice; //Holds choice for each state's function return
+        AddDefaults(); // Adds default users and shows.
+
+        /* Important Variable Initialization */
+        boolean exit = false; // Boolean for main loop control
+        int choice; // Holds choice for each state's function return
+        int currentShowSelectedID; // Current showID selected by user
+        // Main Loop
         while (!exit) {
             switch (state) {
                 case START:
@@ -182,6 +188,24 @@ public class Main {
                         System.out.println("Invalid input, please try again!");
                     }
                     break;
+                case SELECT_SHOW:
+                    try {
+                        currentShowSelectedID = SelectShow();
+                        if (currentShowSelectedID >= 0) {
+                            choice = SelectSeatingTypeChoice();
+                        } else {
+                            choice = currentShowSelectedID;
+                        }
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+
+                    } catch (IllegalArgumentException e) {
+                        System.out.println("Invalid input, please try again!");
+                    }
+                    break;
+                case AUTOMATIC_SELECTION:
+                    exit = true;
+                case INTERACTIVE_SELECTION:
+                    exit = true;
                 default:
                     exit = true;
             }
@@ -189,6 +213,24 @@ public class Main {
         System.out.println(exit);
         System.out.println(state);
         System.out.println(currentUser);
+    }
+
+    private static void AddDefaults() {
+        /* Creating Default Users and Shows */
+        // Default customer
+        users.add(new Customer("wef","wef","wef@wef.com", "07259622506", "wefwef", "04/07/2001", "1 Normal Place, Somewhere, SW26 6EB"));
+        // Default shows
+        Calendar calTest1 = Calendar.getInstance();
+        calTest1.set(Calendar.YEAR, 2024);
+        calTest1.set(Calendar.MONTH, Calendar.JULY);
+        calTest1.set(Calendar.HOUR, 16);
+        calTest1.set(Calendar.MINUTE, 40);
+        calTest1.set(Calendar.SECOND, 0);
+        bcpa.addShow("Test Show", calTest1);
+        Calendar calTest2;
+        calTest2 = (Calendar) calTest1.clone();
+        calTest2.set(Calendar.HOUR, 19);
+        bcpa.addShow("Test Show 2", calTest2);
     }
 
     public static void PrintChoices(boolean showOptionString, String... args) {
@@ -231,6 +273,7 @@ public class Main {
         // Checking for customer profile
         for (User user : users) {
             if (user.getUsername().equals(username) && user.checkPW(password)) {
+                System.out.println("Logged in!");
                 return user;
             }
         }
@@ -333,23 +376,22 @@ public class Main {
             }
         }
 
-        // Return true if successfully added to ArrayList, false otherwise
-        if (users.add(new Customer(
+        if (users.add(new Customer( // Returns true if successfully added to ArrayList, false otherwise
                 accountDetails[0], // Name
                 accountDetails[1], // Username
                 accountDetails[2], // Email Address
                 accountDetails[3], // Mobile Number
                 accountDetails[6], // Password
-                new SimpleDateFormat(accountDetails[4]), // DOB
+                accountDetails[4], // DOB
                 accountDetails[5]))) // Home Address
         {
-            try {
+            try { // Attempt logon
                 currentUser = Login(accountDetails[1], accountDetails[6]);
                 return true;
             } catch (InvalidParameterException ignored) {
             }
         }
-        return false;
+        return false; //Unsuccessful account creation or logon
     }
 
     public static boolean LoginChoice() {
@@ -383,7 +425,7 @@ public class Main {
 
     public static int LoggedInChoice() {
         User.AccountType userType = currentUser.getAccountType();
-        int choice = -1;
+        int choice = -2;
         // Output choices based on user type
         switch (userType) {
             case CUSTOMER:
@@ -414,6 +456,47 @@ public class Main {
             throw new IllegalArgumentException("User not permitted to perform this action.");
         }
         return choice;
+    }
+
+    public static int SelectShow() {
+        System.out.println("Please select a show: ");
+        int count = 1;
+        for (Show show: bcpa.getShows()) {
+            System.out.printf("Name: %s\tTime: %s (%d)\n", show.getName(), show.getTime().getTime(), count);
+            count += 1;
+        }
+        String line = input.nextLine();
+        try {
+            int choice = Integer.parseInt(line);
+            if (choice > 0 && choice <= bcpa.getShows().size()) {
+                return bcpa.getShows().get(choice-1).getID();
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return -1;
+    }
+
+    public static int SelectSeatingTypeChoice() {
+        PrintChoices(true,"Automatic Seat Selection (a)", "Interactive Seat Selection (i)", "Exit (e)");
+        String line = input.nextLine();
+        switch (line) {
+            case "a":
+                return 0;
+            case "i":
+                return 1;
+            case "e":
+                return 2;
+        }
+        return -1;
+    }
+
+    public static void DisplaySeats(int showID) {
+        Show show = bcpa.getShow(showID);
+        Seat[] seats = show.getSeats();
+        
+    }
+    public static int SeatSelection(int showID) {
+
     }
 }
 

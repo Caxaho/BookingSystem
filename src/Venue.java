@@ -1,5 +1,5 @@
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.Calendar;
 import java.util.NoSuchElementException;
 
 public class Venue {
@@ -17,7 +17,7 @@ public class Venue {
 
     public String getName() { return name; }
 
-    public void addShow(String name, Date time) { shows.add(new Show(name, time, numRows, numCols)); }
+    public void addShow(String name, Calendar time) { shows.add(new Show(name, time, numRows, numCols)); }
 
     public void cancelShow(int showID) {
         if (!shows.removeIf(show -> show.getID() == showID)) {

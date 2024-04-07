@@ -1,15 +1,13 @@
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.NoSuchElementException;
 
 public class Customer extends User{
     private String mobileNo;
-    private SimpleDateFormat dob;
+    private String dob;
     private String homeAddress;
     private ArrayList<Booking> bookings = new ArrayList<Booking>();
 
-    public Customer(String name, String username, String emailAddress, String mobileNo, String password, SimpleDateFormat dob, String homeAddress) {
+    public Customer(String name, String username, String emailAddress, String mobileNo, String password, String dob, String homeAddress) {
         super(name, username, emailAddress, password);
         this.mobileNo = mobileNo;
         this.dob = dob;
@@ -17,7 +15,7 @@ public class Customer extends User{
         this.setAccountType(AccountType.CUSTOMER);
     }
 
-    public SimpleDateFormat getDOB() { return dob; }
+    public String getDOB() { return dob; }
 
     public String getHome() { return homeAddress; }
 
