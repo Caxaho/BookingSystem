@@ -1,7 +1,9 @@
 import java.security.InvalidParameterException;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Main {
     static int MIN_REGISTRATION_AGE = 12;
@@ -656,12 +658,20 @@ public class Main {
         return 0;
     }
 
-    private static boolean PaymentChoice(int showID, LinkedList<Seat> seatSelection) {//Display costs (with volume discounts 6+ tickets = 5% off all tickets)
+    private static boolean PaymentChoice(int showID, LinkedList<Seat> seatSelection) {
+        // Display costs (with volume discounts 6+ tickets = 5% off all tickets)
         float discount = seatSelection.size() >= 6 ? 5.0f : 0.0f;
+        float totalCost = 0;
+        DecimalFormat df = new DecimalFormat("0.00");
         for (Seat seat : seatSelection) {
-            System.out.println
+            float initialPrice = seat.getPrice();
+            float discountPrice = (1+(discount/100))*initialPrice;
+            System.out.printf("Seat: %s\tInitial Price: %s\tDiscount: %s\tPrice: %s\n", seat.getPos(), df.format(initialPrice), df.format(discount), df.format(discountPrice));
+            totalCost += discountPrice;
         }
+        System.out.printf("Total cost: %s\n", df.format(totalCost));
 
+        // Get card details
         int stage = 0;
         String cardNumber = "";
         String securityNumber = "";
@@ -684,12 +694,19 @@ public class Main {
                 }
             }
         }
-        //Ask for user input
-        boolean validChoice = false;
-        while (!validChoice) {
-            PrintChoices(true, "exit (e)", );
-
+        if (currentUser.getAccountType() == User.AccountType.CUSTOMER) {
+            String[] bookedSeats = new String[seatSelection.size()];
+            for (int i = 0; i < seatSelection.size(); i++) {
+                Seat seat = seatSelection.get(i);
+                seat.setBooked();
+                bookedSeats[i] = seat.getPos();
+            }
+            Customer customer = (Customer)currentUser;
+            customer.addBooking(showID, bookedSeats);
+            seatSelection.clear();
+            System.out.println("Booking successful!");
         }
+        return true;
     }
 }
 
