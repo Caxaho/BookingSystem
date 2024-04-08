@@ -17,6 +17,12 @@ public class Venue {
 
     public String getName() { return name; }
 
+    public int getNumRows() { return numRows; }
+
+    public int getNumCols() { return numCols; }
+
+    public int getNumSeats() { return numCols*numRows; }
+
     public void addShow(String name, Calendar time) { shows.add(new Show(name, time, numRows, numCols)); }
 
     public void cancelShow(int showID) {

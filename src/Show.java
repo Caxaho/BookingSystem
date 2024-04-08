@@ -35,8 +35,8 @@ public class Show {
         seats = new Seat[numRows*numCols];
         for (int i = 0; i < numCols; i++) {
             for (int j = 0; j < numRows; j++) {
-                int count = i*j + j;
-                String seatName = String.format("%s%s", rowNames[i], j);
+                int count = i*numRows + j;
+                String seatName = String.format("%s%s", rowNames[i], j+1);
                 seats[count] = new Seat(count, seatName, minSeatPrice);
             }
         }

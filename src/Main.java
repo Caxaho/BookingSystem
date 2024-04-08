@@ -1,9 +1,7 @@
 import java.security.InvalidParameterException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
     static int MIN_REGISTRATION_AGE = 12;
@@ -74,27 +72,19 @@ public class Main {
                         return AUTOMATIC_SELECTION;
                     case 1:
                         return INTERACTIVE_SELECTION;
-                    case 2:
-                        return LOGGED_IN;
                 }
                 throw new IllegalArgumentException("choice out of bounds");
             }
 
             @Override
             public ProgramState previousState() {
-                return SELECT_SHOW;
+                return LOGGED_IN;
             }
         },
         AUTOMATIC_SELECTION {
             @Override
             public ProgramState nextState(int choice) {
-                switch (choice) {
-                    case 0:
-                        return PAYMENT;
-                    case 1:
-                        return INTERACTIVE_SELECTION;
-                }
-                throw new IllegalArgumentException("choice out of bounds");
+                return PAYMENT;
             }
 
             @Override
@@ -152,7 +142,7 @@ public class Main {
 
     static ProgramState state = ProgramState.START;
     static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 27, 20);
-    static ArrayList<User> users = new ArrayList<User>();
+    static ArrayList<User> users = new ArrayList<>();
     static User currentUser;
     static Scanner input = new Scanner(System.in);
 
@@ -160,9 +150,11 @@ public class Main {
         AddDefaults(); // Adds default users and shows.
 
         /* Important Variable Initialization */
+        int currentShowSelectedID = -1; // Current showID selected by user (BAD IMPLEMENTATION)
+        LinkedList<Seat> currentUserSeatsSelected = new LinkedList<>(); // Create LinkedList of current seats chosen (FIFO) (BAD IMPLEMENTATION)
+
         boolean exit = false; // Boolean for main loop control
         int choice; // Holds choice for each state's function return
-        int currentShowSelectedID; // Current showID selected by user
         // Main Loop
         while (!exit) {
             switch (state) {
@@ -203,9 +195,13 @@ public class Main {
                     }
                     break;
                 case AUTOMATIC_SELECTION:
-                    exit = true;
+                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, true);
+                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    break;
                 case INTERACTIVE_SELECTION:
-                    exit = true;
+                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false);
+                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    break;
                 default:
                     exit = true;
             }
@@ -459,19 +455,27 @@ public class Main {
     }
 
     public static int SelectShow() {
-        System.out.println("Please select a show: ");
-        int count = 1;
-        for (Show show: bcpa.getShows()) {
-            System.out.printf("Name: %s\tTime: %s (%d)\n", show.getName(), show.getTime().getTime(), count);
-            count += 1;
-        }
-        String line = input.nextLine();
-        try {
-            int choice = Integer.parseInt(line);
-            if (choice > 0 && choice <= bcpa.getShows().size()) {
-                return bcpa.getShows().get(choice-1).getID();
+        boolean validOption = false;
+        while (!validOption) {
+            PrintChoices(false, "exit (e)", "Please select a show: ");
+            int count = 1;
+            int[] showIDs = new int[bcpa.getShows().size()];
+            for (Show show: bcpa.getShows()) {
+                System.out.printf("Name: %s\tTime: %s (%d)\n", show.getName(), show.getTime().getTime(), count);
+                showIDs[count-1] = show.getID();
+                count += 1;
             }
-        } catch (NumberFormatException ignored) {
+            String line = input.nextLine();
+            try {
+                int choice = Integer.parseInt(line);
+                if (choice > 0 && choice <= bcpa.getShows().size()) {
+                    return bcpa.getShow(showIDs[choice-1]).getID();
+                }
+            } catch (NumberFormatException e) {
+                if (line.equals("e")) {
+                    validOption = true;
+                }
+            }
         }
         return -1;
     }
@@ -492,11 +496,159 @@ public class Main {
 
     public static void DisplaySeats(int showID) {
         Show show = bcpa.getShow(showID);
-        Seat[] seats = show.getSeats();
-        
+        int numRows = bcpa.getNumRows();
+        int numCols = bcpa.getNumCols();
+        StringBuilder output = new StringBuilder();
+        //Print column numbers
+        for (int i = 1; i <= numRows; i++) {
+            output.append(String.format("%d  ", i).substring(0,3));
+        }
+        output.append("\n");
+        for (int i = 0; i < numCols; i++) {
+            // Getting row letter
+            int input = i+1;
+            StringBuilder rowLetter = new StringBuilder();
+            while (input > 0) {
+                int num = (input - 1) % 26;
+                char letter = (char) (num + 65);
+                rowLetter.insert(0, letter);
+                input = (input - 1) / 26;
+            }
+            for (int j = 0; j < numRows; j++) {
+                //Getting seat status
+                Seat.SeatStatus status = Seat.SeatStatus.EMPTY;
+                try {
+                    Seat seat = show.getSeat(String.format("%s%d",rowLetter,j+1));
+                    status = seat.getStatus();
+                } catch (NoSuchElementException e) {
+                    throw new RuntimeException("Failed to retrieve seat data while displaying.");
+                }
+                //Appending seat status to diagram
+                output.append(String.format("%c  ", status.toString().charAt(0)));
+            }
+            output.append(String.format("\t%s\n", rowLetter));
+        }
+        output.append("\n Key:\nE = Empty\nH = Held\nB = Booked");
+        System.out.println(output);
     }
-    public static int SeatSelection(int showID) {
 
+    public static int ChooseNumberOfSeats(int showID) {
+        int numTickets = 1;
+        boolean validNumTickets = false;
+        while (!validNumTickets) {
+            System.out.println("How many tickets would you like to purchase?");
+            String line = input.nextLine();
+            try {
+                numTickets = Integer.parseInt(line);
+                if (numTickets > 0 && numTickets <= bcpa.getShow(showID).getMaxSeatsPerUser()) {
+                    validNumTickets = true;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number of tickets.");
+            }
+        }
+        return numTickets;
+    }
+
+    public static float[] SelectPriceRange() {
+        boolean validChoice = false;
+        while (!validChoice) {
+            PrintChoices(true, "exit (e)", "Please state a preferred price range in the format '9.00-15.00'");
+            String line = input.nextLine();
+            if (line.equals("e")) {
+                validChoice = true;
+            } else {
+                try {
+                    if (line.matches("^\\d+.\\d{1,2}-\\d+.\\d{1,2}$")) {
+                        String[] pricesStrings = line.split("-");
+                        return new float[]{Float.parseFloat(pricesStrings[0]), Float.parseFloat(pricesStrings[1])};
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return new float[]{0,0};
+    }
+
+    public static int SeatSelection(int showID, LinkedList<Seat> seatSelection, boolean autoPickSeats) {
+        try {
+            bcpa.getShow(showID);
+        } catch (NoSuchElementException e) {
+            return -1;
+        }
+        // Stores user input
+        String line;
+        // Ask for number of tickets
+        int numTickets = ChooseNumberOfSeats(showID);
+        // Automatic Seat Selection (assuming front seats are best and back seats are the worst)
+        if (autoPickSeats) {
+            //Get user price range
+            float[] priceRange = SelectPriceRange();
+            //Getting available seats in price range
+            ArrayList<Seat> availableSeats = new ArrayList<>();
+            ArrayList<Integer> seatIDs = new ArrayList<>();
+            for (Seat seat : bcpa.getShow(showID).getSeats()) {
+                if (seat.getStatus() == Seat.SeatStatus.EMPTY && seat.getPrice() < priceRange[1] && seat.getPrice() > priceRange[0]) {
+                    availableSeats.add(seat);
+                    seatIDs.add(seat.getID());
+                }
+            }
+            //Selecting best seats out of available seats (lower ID = better seat, due to the way they were created);
+            if (availableSeats.size() > numTickets) {
+                for (int i = 0; i < numTickets; i++){
+                    int lowest = seatIDs.get(0);
+                    for (int j = 0; j < seatIDs.size(); j++) {
+                        lowest = (seatIDs.get(j) < lowest) ? j : lowest;
+                    }
+                    seatSelection.add(availableSeats.get(lowest));
+                    availableSeats.remove(lowest).setHeld();
+                    seatIDs.remove(lowest);
+                }
+            } else {
+                System.out.println("No tickets filled your criteria.");
+                return -1;
+            }
+        }
+        // Seat selection
+        boolean acceptedSeatSelection = false;
+        while (!acceptedSeatSelection) {
+            // Show seats and wait for selection
+            DisplaySeats(showID);
+            PrintChoices(true,"exit (e)", "accept selection (a)",String.format("Please select a seat you would like to book (In the format 'B3', 'A4', etc.)\n You have picked %d out of %d seats\n", seatSelection.size(), numTickets));
+            line = input.nextLine();
+            switch (line) {
+                case "e":
+                    for (int i = 0; i < seatSelection.size(); i++) {
+                        seatSelection.removeFirst().setEmpty();
+                    }
+                    return -1;
+                case "a":
+                    if (seatSelection.size() == numTickets) {
+                        acceptedSeatSelection = true;
+                    }
+                    break;
+                default:
+                    try {
+                        Seat chosen = bcpa.getShow(showID).getSeat(line);
+                        // Check if taken
+                        String chosenStatus = chosen.getStatus().toString();
+                        boolean taken = chosenStatus.equals(Seat.SeatStatus.HELD.toString()) || chosenStatus.equals(Seat.SeatStatus.BOOKED.toString());
+                        if (!taken) {
+                            seatSelection.add(chosen);
+                            chosen.setHeld();
+                            bcpa.getShow(showID).getSeat(line);
+                            if (seatSelection.size() > numTickets) {
+                                seatSelection.removeFirst().setEmpty();
+                            }
+                        } else {
+                            System.out.println("Seat already taken, please pick a valid seat.");
+                        }
+                    } catch (NoSuchElementException e) {
+                        System.out.println("Please enter a valid seat.");
+                    }
+            }
+        }
+        return 0;
     }
 }
 
