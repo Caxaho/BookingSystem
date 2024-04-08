@@ -571,6 +571,7 @@ public class Main {
     }
 
     public static int SeatSelection(int showID, LinkedList<Seat> seatSelection, boolean autoPickSeats) {
+        // Ensuring showID exists
         try {
             bcpa.getShow(showID);
         } catch (NoSuchElementException e) {
@@ -578,38 +579,37 @@ public class Main {
         }
         // Stores user input
         String line;
+
         // Ask for number of tickets
         int numTickets = ChooseNumberOfSeats(showID);
+
         // Automatic Seat Selection (assuming front seats are best and back seats are the worst)
         if (autoPickSeats) {
             //Get user price range
             float[] priceRange = SelectPriceRange();
-            //Getting available seats in price range
-            ArrayList<Seat> availableSeats = new ArrayList<>();
+            //Getting best available seats in price range (lower ID is better and seat list is created from the lowest ID to highest)
             ArrayList<Integer> seatIDs = new ArrayList<>();
             for (Seat seat : bcpa.getShow(showID).getSeats()) {
                 if (seat.getStatus() == Seat.SeatStatus.EMPTY && seat.getPrice() < priceRange[1] && seat.getPrice() > priceRange[0]) {
-                    availableSeats.add(seat);
                     seatIDs.add(seat.getID());
                 }
             }
-            //Selecting best seats out of available seats (lower ID = better seat, due to the way they were created);
-            if (availableSeats.size() > numTickets) {
+            //Sorting available seatIDs in ascending order just in case
+            Collections.sort(seatIDs);
+            //Selecting best seats out of available seats (It is known );
+            if (seatIDs.size() > numTickets) {
                 for (int i = 0; i < numTickets; i++){
-                    int lowest = seatIDs.get(0);
-                    for (int j = 0; j < seatIDs.size(); j++) {
-                        lowest = (seatIDs.get(j) < lowest) ? j : lowest;
-                    }
-                    seatSelection.add(availableSeats.get(lowest));
-                    availableSeats.remove(lowest).setHeld();
-                    seatIDs.remove(lowest);
+                    Seat bestSeat = bcpa.getShow(showID).getSeat(seatIDs.get(i));
+                    seatSelection.add(bestSeat);
+                    bestSeat.setHeld();
                 }
             } else {
                 System.out.println("No tickets filled your criteria.");
                 return -1;
             }
         }
-        // Seat selection
+
+        //Interactive Seat selection
         boolean acceptedSeatSelection = false;
         while (!acceptedSeatSelection) {
             // Show seats and wait for selection
@@ -618,9 +618,11 @@ public class Main {
             line = input.nextLine();
             switch (line) {
                 case "e":
-                    for (int i = 0; i < seatSelection.size(); i++) {
-                        seatSelection.removeFirst().setEmpty();
+                    //Set all held seats to empty and clear the selection
+                    for (Seat seat : seatSelection) {
+                        seat.setEmpty();
                     }
+                    seatSelection.clear();
                     return -1;
                 case "a":
                     if (seatSelection.size() == numTickets) {
