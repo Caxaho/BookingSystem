@@ -111,7 +111,7 @@ public class Main {
 
             @Override
             public ProgramState previousState() {
-                return SELECT_SHOW;
+                return INTERACTIVE_SELECTION;
             }
         },
         CANCEL_SHOW {
@@ -141,7 +141,7 @@ public class Main {
     }
 
     static ProgramState state = ProgramState.START;
-    static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 27, 20);
+    static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 20, 27);
     static ArrayList<User> users = new ArrayList<>();
     static User currentUser;
     static Scanner input = new Scanner(System.in);
@@ -201,6 +201,9 @@ public class Main {
                 case INTERACTIVE_SELECTION:
                     choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false);
                     state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    break;
+                case PAYMENT:
+                    state = PaymentChoice(currentShowSelectedID, currentUserSeatsSelected) ? state.nextState(0) : state.previousState();
                     break;
                 default:
                     exit = true;
@@ -651,6 +654,42 @@ public class Main {
             }
         }
         return 0;
+    }
+
+    private static boolean PaymentChoice(int showID, LinkedList<Seat> seatSelection) {//Display costs (with volume discounts 6+ tickets = 5% off all tickets)
+        float discount = seatSelection.size() >= 6 ? 5.0f : 0.0f;
+        for (Seat seat : seatSelection) {
+            System.out.println
+        }
+
+        int stage = 0;
+        String cardNumber = "";
+        String securityNumber = "";
+        while (stage < 2) {
+            PrintChoices(true,"Exit (e)", String.format("Enter %s:", stage == 0 ? "Card Number (with format XXXX-XXXX-XXXX-XXXX)" : "Security Number"));
+            String line = input.nextLine();
+            if (line.equals("e")) {
+                return false;
+            } else {
+                if (stage == 0) {
+                    if (line.matches("^(\\d{4}[-\\s]){3}\\d{4}$")) {
+                        cardNumber = line;
+                        stage += 1;
+                    }
+                } else {
+                    if (line.matches("^\\d{3}$")) {
+                        securityNumber = line;
+                        stage += 1;
+                    }
+                }
+            }
+        }
+        //Ask for user input
+        boolean validChoice = false;
+        while (!validChoice) {
+            PrintChoices(true, "exit (e)", );
+
+        }
     }
 }
 
