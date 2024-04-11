@@ -3,7 +3,6 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Main {
     static int MIN_REGISTRATION_AGE = 12;
@@ -142,14 +141,14 @@ public class Main {
         public abstract ProgramState previousState();
     }
 
-    static ProgramState state = ProgramState.START;
-    static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 20, 27);
-    static ArrayList<User> users = new ArrayList<>();
-    static User currentUser;
-    static Scanner input = new Scanner(System.in);
+    static ProgramState state = ProgramState.START; // State machine instance
+    static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 20, 27); // Single venue since it never changes
+    static User currentUser; //Current logged in user
+    static Scanner input = new Scanner(System.in); // For getting user input
+    static ArrayList<User> users = new ArrayList<>(); //Stores all the users, this would usually be in a database.
 
     public static void main(String[] args) {
-        AddDefaults(); // Adds default users and shows.
+        AddDefaults(bcpa, users); // Adds default users and shows.
 
         /* Important Variable Initialization */
         int currentShowSelectedID = -1; // Current showID selected by user (BAD IMPLEMENTATION)
@@ -161,12 +160,12 @@ public class Main {
         while (!exit) {
             switch (state) {
                 case START:
-                    try {
-                        choice = StartChoice();
+//                    try {
+                        choice = StartChoice(); // Perform operations for START state and return the state to move to
                         state = choice >= 0 ? state.nextState(choice) : state.previousState();
-                    } catch (IllegalArgumentException e) {
-                        System.out.println("Invalid input, please try again!");
-                    }
+//                    } catch (IllegalArgumentException e) {
+//                        System.out.println("Invalid input, please try again!");
+//                    }
                     break;
                 case REQUEST_LOGIN:
                     state = LoginChoice() ? state.nextState(0) : state.previousState();
@@ -216,10 +215,15 @@ public class Main {
         System.out.println(currentUser);
     }
 
-    private static void AddDefaults() {
+    /**
+     * Adds example/default shows and users.
+     * @param venue Venue to add the shows to.
+     * @param userList User list to add the users to.
+     */
+    private static void AddDefaults(Venue venue, ArrayList<User> userList) {
         /* Creating Default Users and Shows */
         // Default customer
-        users.add(new Customer("wef","wef","wef@wef.com", "07259622506", "wefwef", "04/07/2001", "1 Normal Place, Somewhere, SW26 6EB"));
+        userList.add(new Customer("wef","wef","wef@wef.com", "07259622506", "wefwef", "04/07/2001", "1 Normal Place, Somewhere, SW26 6EB"));
         // Default shows
         Calendar calTest1 = Calendar.getInstance();
         calTest1.set(Calendar.YEAR, 2024);
@@ -227,13 +231,18 @@ public class Main {
         calTest1.set(Calendar.HOUR, 16);
         calTest1.set(Calendar.MINUTE, 40);
         calTest1.set(Calendar.SECOND, 0);
-        bcpa.addShow("Test Show", calTest1);
+        venue.addShow("Test Show", calTest1);
         Calendar calTest2;
         calTest2 = (Calendar) calTest1.clone();
         calTest2.set(Calendar.HOUR, 19);
-        bcpa.addShow("Test Show 2", calTest2);
+        venue.addShow("Test Show 2", calTest2);
     }
 
+    /**
+     * Prints any number of strings on a new line per string, with the optional starting string "Please select an option:"
+     * @param showOptionString Adds "Please select an option:\n" at the beginning of the print statement if True, otherwise it leaves it blank.
+     * @param args Any number of strings to print.
+     */
     public static void PrintChoices(boolean showOptionString, String... args) {
         StringBuilder output = new StringBuilder();
         if (showOptionString) { output.append("Please select an option:\n"); }
@@ -243,47 +252,112 @@ public class Main {
         System.out.println(output);
     }
 
+    /**
+     * Validates a date of birth String.
+     * @param dob Date of birth as String.
+     * @return True if the 'dob' parameter is a valid date of birth and is at least 12 years ago. False otherwise.
+     */
     public static boolean ValidDateOfBirth(String dob) {
-        if (dob.matches("^\\d{1,2}\\/\\d{1,2}\\/\\d{4}$")) {
+        // Validating DOB structure with regex and parsing it with the SimpleDateFormat class
+        if (dob.matches("^\\d{1,2}/\\d{1,2}/\\d{4}$")) {
             SimpleDateFormat inputDOB = new SimpleDateFormat("dd/MM/yyyy"); // Created to validate the date
-            inputDOB.setLenient(false);
+            inputDOB.setLenient(false); // Setting the SimpleDateFormat to be strict
             try {
-                inputDOB.parse(dob); // Parsing date (ParseException raised if invalid)
-                // Validating age
+                inputDOB.parse(dob); // Parsing date (ParseException raised if invalid/impossible date)
+                /* Validating age (at least 12 years old) */
                 Calendar inputCal = inputDOB.getCalendar(); // Convert input date to Calendar object
                 Calendar cal = Calendar.getInstance(); // Get current date
-                cal.set(cal.get(Calendar.YEAR)-MIN_REGISTRATION_AGE, cal.get(Calendar.MONTH), cal.get(Calendar.DATE));
+                cal.set(cal.get(Calendar.YEAR)-MIN_REGISTRATION_AGE, cal.get(Calendar.MONTH), cal.get(Calendar.DATE)); // Take 12 years off the current date
                 if (inputCal.before(cal)) {
-                    return true; // Valid date
+                    return true; // Valid date if input date is at least 12 years ago, and a valid format
                 }
             } catch (ParseException ignored) {
+                // Catch ParseException and ignore, as it will return false at the end of the method anyway
             }
         }
         return false; // Returns false if 'dob' given was of the wrong format, not a real date, or below the minimum age requirement
     }
 
+    /**
+     * Validates username with regex (lowercase only, no special characters, 2 or more characters).
+     * @param username Username to validate.
+     * @return True if valid username.
+     */
     public static boolean ValidUsername(String username) {
         return username.matches("^[a-z0-9_-]{2,}$");
     }
 
+    /**
+     * Validates password with regex (It must contain a minimum of eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character).
+     * @param pass Password to validate.
+     * @return True if valid password.
+     */
     public static boolean ValidPass(String pass) {
         return pass.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
     }
 
-    public static User Login(String username, String password) {
-        // Checking for customer profile
+    /**
+     * Validates full name with regex.
+     * @param fullName Full name to validate.
+     * @return True if valid full name.
+     */
+    public static boolean ValidFullName(String fullName) {
+        String lowerCaseName = fullName.toLowerCase();
+        return lowerCaseName.matches("^[a-z ,.'-]+$");
+    }
+
+    /**
+     * Validates simple mobile phone number with regex.
+     * @param phoneNumber Phone number to validate.
+     * @return True if valid phone number.
+     */
+    public static boolean ValidPhoneNumber(String phoneNumber) {
+        return phoneNumber.matches("^\\d{11}$");
+    }
+
+    /**
+     * Validates email address with regex (accepted format = demo@contoso.com)
+     * @param email Email address to validate.
+     * @return True if valid email address.
+     */
+    public static boolean ValidEmailAddress(String email) {
+        return email.matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$");
+    }
+
+    /**
+     * Validates home address with regex.
+     * @param homeAddress Home address to validate.
+     * @return True if valid home address.
+     */
+    public static boolean ValidHomeAddress(String homeAddress) {
+        return homeAddress.matches("^\\d+[a-zA-Z\\s]+,[a-zA-Z\\s]+,\\s*[a-zA-Z]{1,2}\\d{1,2}\\s\\d[a-zA-Z]{1,2}$");
+    }
+
+    /**
+     * Logs the user in with given parameters.
+     * @param username Username for login.
+     * @param password Password for login.
+     * @return True on successful login.
+     */
+    public static boolean Login(String username, String password) {
+        // Searching for profile with matching username and valid password
         for (User user : users) {
             if (user.getUsername().equals(username) && user.checkPW(password)) {
                 System.out.println("Logged in!");
-                return user;
+                currentUser = user;
+                return true; // Successful login
             }
         }
-        throw new InvalidParameterException();
+        return false;
     }
 
+    /**
+     * Executed when in the 'START' state in the ProgramState state machine.
+     * @return Choice made by user (login 'l' = 0, register 'r' = 1, exit 'e' = 2, invalid choice = -1).
+     */
     public static int StartChoice() {
         PrintChoices(true,"Login (l)", "Register New Account (r)", "Exit (e)");
-        String line = input.nextLine();
+        String line = input.nextLine(); // Get user input
         switch (line) {
             case "l":
                 return 0;
@@ -292,107 +366,84 @@ public class Main {
             case "e":
                 return 2;
         }
-        return -1;
+        return -1; // Invalid choice
     }
 
+    /**
+     * Executed when in the 'REGISTRATION' state in the ProgramState state machine.
+     * @return True if account creation was successful
+     */
     public static boolean RegistrationChoice() {
+        // Array of the strings used to request the account requirements from the user
         String[] accountRequirements = new String[]{
                 "Full Name",
-                "Username",
+                "Username (all lowercase, no special characters)",
                 "Email Address",
                 "Mobile Number (No area codes e.g. '07334560229')",
                 "Date of Birth (In the form dd/mm/yyyy with a minimum age of 12 e.g. 15/08/1997)",
                 "Home Address (of the format 'House Number and Street, City, Postcode' with lines separated by commas e.g '1 Planning Lane, Oxford, OX3 5IQ')",
-                "Password"
+                "Password (It must contain a minimum of eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character)"
         };
+        // Array to store the validated user inputted account details
         String[] accountDetails = new String[accountRequirements.length];
+
+        /* Getting and validating user input */
         int stage = 0;
         String requirement;
+        boolean validEntry;
         while (stage < accountRequirements.length) {
-            requirement = accountRequirements[stage];
+            validEntry = false;
+            requirement = accountRequirements[stage]; // Current stage's requirement string
             PrintChoices(false, "Exit (e)", String.format("Enter your %s:",requirement));
-            String line = input.nextLine();
+            String line = input.nextLine(); // Get user input
             if (line.equals("e")) {
-                return false;
+                return false; // Return false if exit 'e' is inputted
             } else {
                 switch (stage) {
                     case 0: // Full Name
-                        String lowerCaseName = line.toLowerCase();
-                        if (lowerCaseName.matches("^[a-z ,.'-]+$")) {
-                            accountDetails[stage] = lowerCaseName;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid name.");
-                        }
+                        validEntry = ValidFullName(line);
                         break;
                     case 1: // Username
-                        if (ValidUsername(line)) {
-                            accountDetails[stage] = line;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid username.");
-                        }
+                        validEntry = ValidUsername(line);
                         break;
                     case 2: // Email Address
-                        if (line.matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
-                            accountDetails[stage] = line;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid email address.");
-                        }
+                        validEntry = ValidEmailAddress(line);
                         break;
                     case 3: // Mobile Number
-                        if (line.matches("^\\d{11}$")) {
-                            accountDetails[stage] = line;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid mobile number.");
-                        }
+                        validEntry = ValidPhoneNumber(line);
                         break;
                     case 4: // Date of Birth
-                        if (ValidDateOfBirth(line)) {
-                            accountDetails[stage] = line;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid date.");
-                        }
+                        validEntry = ValidDateOfBirth(line);
                         break;
                     case 5: // Home Address
-                        if (line.matches("^\\d+[a-zA-Z\\s]+,[a-zA-Z\\s]+,\\s*[a-zA-Z]{1,2}\\d{1,2}\\s\\d[a-zA-Z]{1,2}$")) {
-                            accountDetails[stage] = line;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid home address.");
-                        }
+                        validEntry = ValidHomeAddress(line);
                         break;
                     case 6: // Password
-                        if (ValidPass(line)) {
-                            accountDetails[stage] = line;
-                            stage += 1;
-                        } else {
-                            System.out.println("Please enter a valid password. It must contain a minimum of eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character.");
-                        }
+                        validEntry = ValidPass(line);
                         break;
+                }
+                // If valid entry, increase stage and add entry to account details
+                if (validEntry) {
+                    accountDetails[stage] = line;
+                    stage += 1;
+                } else {
+                    System.out.printf("Please enter a valid %s%n", accountRequirements[stage]);
                 }
             }
         }
 
-        if (users.add(new Customer( // Returns true if successfully added to ArrayList, false otherwise
+        /* Create and Login new user */
+        users.add(new Customer(
                 accountDetails[0], // Name
                 accountDetails[1], // Username
                 accountDetails[2], // Email Address
                 accountDetails[3], // Mobile Number
                 accountDetails[6], // Password
                 accountDetails[4], // DOB
-                accountDetails[5]))) // Home Address
-        {
-            try { // Attempt logon
-                currentUser = Login(accountDetails[1], accountDetails[6]);
-                return true;
-            } catch (InvalidParameterException ignored) {
-            }
-        }
-        return false; //Unsuccessful account creation or logon
+                accountDetails[5])); // Home Address
+
+        // Attempt login and return success
+        return Login(accountDetails[1], accountDetails[6]);
     }
 
     public static boolean LoginChoice() {
@@ -415,10 +466,9 @@ public class Main {
             }
         }
         // Attempt logon
-        try {
-            currentUser = Login(username, pass);
+        if(Login(username, pass)) {
             return true;
-        } catch (InvalidParameterException e) {
+        } else {
             System.out.println("Username/Password was incorrect.");
         }
         return false;
