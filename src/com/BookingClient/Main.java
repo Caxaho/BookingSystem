@@ -1,4 +1,5 @@
-import java.security.InvalidParameterException;
+package com.BookingClient;
+
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -196,12 +197,14 @@ public class Main {
                     }
                     break;
                 case AUTOMATIC_SELECTION:
-                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, true);
-                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+//                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, true);
+//                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    state = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, true) ? state.nextState(0) : state.previousState();
                     break;
                 case INTERACTIVE_SELECTION:
-                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false);
-                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+//                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false);
+//                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    state = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false) ? state.nextState(0) : state.previousState();
                     break;
                 case PAYMENT:
                     state = PaymentChoice(currentShowSelectedID, currentUserSeatsSelected) ? state.nextState(0) : state.previousState();
@@ -446,23 +449,25 @@ public class Main {
         return Login(accountDetails[1], accountDetails[6]);
     }
 
+    /**
+     * Executed when in the 'REQUEST_LOGIN' state in the ProgramState state machine.
+     * @return True if successful login.
+     */
     public static boolean LoginChoice() {
         int stage = 0;
-        String username = "";
-        String pass = "";
+        String username = "", pass = "";
         while (stage < 2) {
             PrintChoices(true,"Exit (e)", String.format("Enter %s:", stage == 0 ? "username" : "password"));
             String line = input.nextLine();
             if (line.equals("e")) {
-                return false;
+                return false; // Return false if exit 'e' is inputted
             } else {
                 if (stage == 0) {
                     username = line;
-                    stage += 1;
                 } else {
                     pass = line;
-                    stage += 1;
                 }
+                stage += 1;
             }
         }
         // Attempt logon
@@ -474,9 +479,13 @@ public class Main {
         return false;
     }
 
-    public static int LoggedInChoice() {
+    /**
+     * Executed when in the 'LOGGED_IN' state in the ProgramState state machine.
+     * @return Choice made by user (Book Show 'b' = 0, Cancel Show 'c' = 1, exit 'e' = -1, invalid choice = -1).
+     */
+    public static int LoggedInChoice() throws IllegalArgumentException{
         User.AccountType userType = currentUser.getAccountType();
-        int choice = -2;
+        int choice = -1;
         // Output choices based on user type
         switch (userType) {
             case CUSTOMER:
@@ -493,8 +502,7 @@ public class Main {
         String line = input.nextLine();
         switch (line) {
             case "e":
-                choice = -1;
-                break;
+                return -1;
             case "b":
                 choice = 0;
                 break;
@@ -503,23 +511,29 @@ public class Main {
                 break;
         }
         // Ensures only the choices available to the current user are selectable
-        if (!(userType == User.AccountType.CUSTOMER && choice <= 1 && choice >= -1)) {
+        if (!(userType == User.AccountType.CUSTOMER && choice <= 1 && choice >= 0)) {
             throw new IllegalArgumentException("User not permitted to perform this action.");
         }
         return choice;
     }
 
+    /**
+     * Executed when in the 'SELECT_SHOW' state in the ProgramState state machine. Used to get show selection from user.
+     * @return Show ID picked by the user, or -1 if 'e' is inputted.
+     */
     public static int SelectShow() {
         boolean validOption = false;
         while (!validOption) {
             PrintChoices(false, "exit (e)", "Please select a show: ");
-            int count = 1;
-            int[] showIDs = new int[bcpa.getShows().size()];
+            int count = 1; // Counter for shows in Venue
+            int[] showIDs = new int[bcpa.getShows().size()]; // Array to hold all show IDs
+            // Displaying all shows to the user
             for (Show show: bcpa.getShows()) {
-                System.out.printf("Name: %s\tTime: %s (%d)\n", show.getName(), show.getTime().getTime(), count);
+                System.out.printf("(%d) Name: %s\n\tTime: %s \n", count, show.getName(), show.getTime().getTime());
                 showIDs[count-1] = show.getID();
                 count += 1;
             }
+            /* Getting and validating user input */
             String line = input.nextLine();
             try {
                 int choice = Integer.parseInt(line);
@@ -528,13 +542,17 @@ public class Main {
                 }
             } catch (NumberFormatException e) {
                 if (line.equals("e")) {
-                    validOption = true;
+                    validOption = true; // Escape loop if 'e' is
                 }
             }
         }
         return -1;
     }
 
+    /**
+     * Executed when in the 'SELECT_SHOW' state in the ProgramState state machine.
+     * @return Choice made by user (Automatic Seat Selection 'a' = 0, Interactive Seat Selection 'i' = 1, exit 'e' = 2, invalid choice = -1).
+     */
     public static int SelectSeatingTypeChoice() {
         PrintChoices(true,"Automatic Seat Selection (a)", "Interactive Seat Selection (i)", "Exit (e)");
         String line = input.nextLine();
@@ -544,12 +562,16 @@ public class Main {
             case "i":
                 return 1;
             case "e":
-                return 2;
+                break;
         }
         return -1;
     }
 
-    public static void DisplaySeats(int showID) {
+    /**
+     * Displays the seats to the user and indicates if the seats are empty, held, or booked.
+     * @param showID Show ID of the show to display seats for.
+     */
+    public static void DisplaySeats(int showID) throws RuntimeException{
         Show show = bcpa.getShow(showID);
         int numRows = bcpa.getNumRows();
         int numCols = bcpa.getNumCols();
@@ -570,23 +592,26 @@ public class Main {
                 input = (input - 1) / 26;
             }
             for (int j = 0; j < numRows; j++) {
-                //Getting seat status
-                Seat.SeatStatus status = Seat.SeatStatus.EMPTY;
+                Seat.SeatStatus status = Seat.SeatStatus.EMPTY; // Getting seat status
                 try {
                     Seat seat = show.getSeat(String.format("%s%d",rowLetter,j+1));
                     status = seat.getStatus();
                 } catch (NoSuchElementException e) {
                     throw new RuntimeException("Failed to retrieve seat data while displaying.");
                 }
-                //Appending seat status to diagram
-                output.append(String.format("%c  ", status.toString().charAt(0)));
+                output.append(String.format("%c  ", status.toString().charAt(0))); // Appending seat status to diagram
             }
-            output.append(String.format("\t%s\n", rowLetter));
+            output.append(String.format("\t%s\n", rowLetter)); // Appending row letter to the string and starting new line
         }
-        output.append("\n Key:\nE = Empty\nH = Held\nB = Booked");
-        System.out.println(output);
+        output.append("\n Key:\nE = Empty\nH = Held\nB = Booked"); // Appending key to the string
+        System.out.println(output); // Display seats
     }
 
+    /**
+     * Retrieve and validate user input for number of seats to purchase.
+     * @param showID Show ID for the show the user is selecting tickets for.
+     * @return Number of seats/tickets chosen by the user.
+     */
     public static int ChooseNumberOfSeats(int showID) {
         int numTickets = 1;
         boolean validNumTickets = false;
@@ -595,8 +620,11 @@ public class Main {
             String line = input.nextLine();
             try {
                 numTickets = Integer.parseInt(line);
+                //TODO Implement users maximum seats per show properly (it currently only checks for the current purchase)
                 if (numTickets > 0 && numTickets <= bcpa.getShow(showID).getMaxSeatsPerUser()) {
                     validNumTickets = true;
+                } else {
+                    System.out.printf("The number of tickets must be greater than 0, and one user may only purchase %d tickets per show.%n", bcpa.getShow(showID).getMaxSeatsPerUser());
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Please enter a valid number of tickets.");
@@ -605,6 +633,10 @@ public class Main {
         return numTickets;
     }
 
+    /**
+     * Retrieve and validate user input for price range of seats
+     * @return float[2] with the first element being the
+     */
     public static float[] SelectPriceRange() {
         boolean validChoice = false;
         while (!validChoice) {
@@ -625,12 +657,19 @@ public class Main {
         return new float[]{0,0};
     }
 
-    public static int SeatSelection(int showID, LinkedList<Seat> seatSelection, boolean autoPickSeats) {
+    /**
+     * Retrieves and validates user input for seat selection.
+     * @param showID Show ID for show that the user is selecting seats for
+     * @param seatSelection LinkedList to store the current seats selected
+     * @param autoPickSeats If True, automatic seat selection will take place before the user is taken to interactive seat selection.
+     * @return
+     */
+    public static boolean SeatSelection(int showID, LinkedList<Seat> seatSelection, boolean autoPickSeats) {
         // Ensuring showID exists
         try {
             bcpa.getShow(showID);
         } catch (NoSuchElementException e) {
-            return -1;
+            return false;
         }
         // Stores user input
         String line;
@@ -642,7 +681,7 @@ public class Main {
         if (autoPickSeats) {
             //Get user price range
             float[] priceRange = SelectPriceRange();
-            //Getting best available seats in price range (lower ID is better and seat list is created from the lowest ID to highest)
+            //Getting the best available seats in price range (lower ID is better and seat list is created from the lowest ID to highest)
             ArrayList<Integer> seatIDs = new ArrayList<>();
             for (Seat seat : bcpa.getShow(showID).getSeats()) {
                 if (seat.getStatus() == Seat.SeatStatus.EMPTY && seat.getPrice() < priceRange[1] && seat.getPrice() > priceRange[0]) {
@@ -660,7 +699,7 @@ public class Main {
                 }
             } else {
                 System.out.println("No tickets filled your criteria.");
-                return -1;
+                return false;
             }
         }
 
@@ -678,7 +717,7 @@ public class Main {
                         seat.setEmpty();
                     }
                     seatSelection.clear();
-                    return -1;
+                    return false;
                 case "a":
                     if (seatSelection.size() == numTickets) {
                         acceptedSeatSelection = true;
@@ -705,9 +744,15 @@ public class Main {
                     }
             }
         }
-        return 0;
+        return true;
     }
 
+    /**
+     * Retrieves and validates user input for payment information.
+     * @param showID Show ID for the show that the user is buying tickets for
+     * @param seatSelection
+     * @return
+     */
     private static boolean PaymentChoice(int showID, LinkedList<Seat> seatSelection) {
         // Display costs (with volume discounts 6+ tickets = 5% off all tickets)
         float discount = seatSelection.size() >= 6 ? 5.0f : 0.0f;

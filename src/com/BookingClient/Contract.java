@@ -1,3 +1,5 @@
+package com.BookingClient;
+
 public class Contract {
     private final float commission;
     private final int showID;

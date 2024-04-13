@@ -1,3 +1,5 @@
+package com.BookingClient;
+
 public class Booking {
     private final int bookingID;
     private static int bookingCount;

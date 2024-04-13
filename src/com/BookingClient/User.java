@@ -1,3 +1,5 @@
+package com.BookingClient;
+
 public class User {
     private String name;
     private String username;

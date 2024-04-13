@@ -1,3 +1,5 @@
+package com.BookingClient;
+
 public class Promotion {
     private String name;
     private final int promotionID;

@@ -1,3 +1,5 @@
+package com.BookingClient;
+
 public class Seat {
     public enum SeatStatus {
         EMPTY,
