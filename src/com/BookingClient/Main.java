@@ -4,6 +4,7 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Main {
     static int MIN_REGISTRATION_AGE = 12;
@@ -161,18 +162,17 @@ public class Main {
         while (!exit) {
             switch (state) {
                 case START:
-//                    try {
-                        choice = StartChoice(); // Perform operations for START state and return the state to move to
-                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
-//                    } catch (IllegalArgumentException e) {
-//                        System.out.println("Invalid input, please try again!");
-//                    }
+                    choice = StartChoice(); // Perform operations for START state and return the state to move to
+                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
                     break;
                 case REQUEST_LOGIN:
                     state = LoginChoice() ? state.nextState(0) : state.previousState();
                     break;
                 case REGISTRATION:
-                    state = RegistrationChoice() ? state.nextState(0) : state.previousState();
+                    state = RegistrationChoice(users) ? state.nextState(0) : state.previousState();
+                    if (state == ProgramState.START) {
+                        System.out.println("Account creation unsuccessful. You cannot create accounts with duplicate email addresses or usernames!");
+                    }
                     break;
                 case LOGGED_IN:
                     try {
@@ -197,17 +197,17 @@ public class Main {
                     }
                     break;
                 case AUTOMATIC_SELECTION:
-//                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, true);
-//                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
                     state = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, true) ? state.nextState(0) : state.previousState();
                     break;
                 case INTERACTIVE_SELECTION:
-//                    choice = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false);
-//                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
                     state = SeatSelection(currentShowSelectedID, currentUserSeatsSelected, false) ? state.nextState(0) : state.previousState();
                     break;
                 case PAYMENT:
                     state = PaymentChoice(currentShowSelectedID, currentUserSeatsSelected) ? state.nextState(0) : state.previousState();
+                    break;
+                case CANCEL_SHOW:
+                    CancelShowChoice(currentUser, bcpa);
+                    state = state.nextState(0);
                     break;
                 default:
                     exit = true;
@@ -376,7 +376,7 @@ public class Main {
      * Executed when in the 'REGISTRATION' state in the ProgramState state machine.
      * @return True if account creation was successful
      */
-    public static boolean RegistrationChoice() {
+    public static boolean RegistrationChoice(ArrayList<User> userArrayList) {
         // Array of the strings used to request the account requirements from the user
         String[] accountRequirements = new String[]{
                 "Full Name",
@@ -435,15 +435,20 @@ public class Main {
             }
         }
 
-        /* Create and Login new user */
-        users.add(new Customer(
-                accountDetails[0], // Name
-                accountDetails[1], // Username
-                accountDetails[2], // Email Address
-                accountDetails[3], // Mobile Number
-                accountDetails[6], // Password
-                accountDetails[4], // DOB
-                accountDetails[5])); // Home Address
+        /* Check for duplicate user */
+        List<String> usernames = userArrayList.stream().map(User::getUsername).collect(Collectors.toList()); // Get usernames of all users
+        List<String> emails = userArrayList.stream().map(User::getEmail).collect(Collectors.toList()); // Get email addresses of all users
+        if (!(usernames.contains(accountDetails[1]) || emails.contains(accountDetails[2]))) {
+            /* Create new user */
+            users.add(new Customer(
+                    accountDetails[0], // Name
+                    accountDetails[1], // Username
+                    accountDetails[2], // Email Address
+                    accountDetails[3], // Mobile Number
+                    accountDetails[6], // Password
+                    accountDetails[4], // DOB
+                    accountDetails[5])); // Home Address
+        }
 
         // Attempt login and return success
         return Login(accountDetails[1], accountDetails[6]);
@@ -518,7 +523,7 @@ public class Main {
     }
 
     /**
-     * Executed when in the 'SELECT_SHOW' state in the ProgramState state machine. Used to get show selection from user.
+     * Retrieves and validates show selection from user.
      * @return Show ID picked by the user, or -1 if 'e' is inputted.
      */
     public static int SelectShow() {
@@ -550,7 +555,7 @@ public class Main {
     }
 
     /**
-     * Executed when in the 'SELECT_SHOW' state in the ProgramState state machine.
+     * Retrieves and validates user input for which type of seat selection they would like to choose.
      * @return Choice made by user (Automatic Seat Selection 'a' = 0, Interactive Seat Selection 'i' = 1, exit 'e' = 2, invalid choice = -1).
      */
     public static int SelectSeatingTypeChoice() {
@@ -760,11 +765,11 @@ public class Main {
         DecimalFormat df = new DecimalFormat("0.00");
         for (Seat seat : seatSelection) {
             float initialPrice = seat.getPrice();
-            float discountPrice = (1+(discount/100))*initialPrice;
-            System.out.printf("Seat: %s\tInitial Price: %s\tDiscount: %s\tPrice: %s\n", seat.getPos(), df.format(initialPrice), df.format(discount), df.format(discountPrice));
+            float discountPrice = (1-(discount/100))*initialPrice;
+            System.out.printf("Seat: %s\tInitial Price: £%s\tDiscount: %s%%\tPrice: £%s\n", seat.getPos(), df.format(initialPrice), df.format(discount), df.format(discountPrice));
             totalCost += discountPrice;
         }
-        System.out.printf("Total cost: %s\n", df.format(totalCost));
+        System.out.printf("Total cost: £%s\n", df.format(totalCost));
 
         // Get card details
         int stage = 0;
@@ -803,5 +808,37 @@ public class Main {
         }
         return true;
     }
-}
 
+    /**
+     *
+     * @param user
+     * @return
+     */
+    private static void CancelShowChoice(User user, Venue venue) {
+        /* Validate that user is a customer */
+        if (!(user.getAccountType() == User.AccountType.CUSTOMER)) {
+            return;
+        }
+        /* Display customer's bookings */
+        System.out.println("Bookings: ");
+        Customer customer = (Customer)user;
+        ArrayList<Booking> bookings = customer.getBookings();
+        for (int i = 0; i < bookings.size(); i++) {
+            Booking booking = bookings.get(i);
+            Show bookedShow = venue.getShow(booking.getShowID());
+            System.out.printf("(%d) %s%n", (i+1), bookedShow.getName());
+            System.out.printf("\tTime: %s%n", bookedShow.getTime().getTime());
+            System.out.printf("\tNo. of Seats: %d%n", booking.getSeats().length);
+            System.out.printf("\tSeats: %s%n", String.join(",", booking.getSeats()));
+        }
+
+        try {
+            int line = input.nextInt();
+            if (line <= bookings.size() && line > 0) {
+                customer.cancelBooking(bookings.get(line-1).getID());
+            }
+        } catch (Exception e) {
+            System.out.println("Please enter a valid booking to cancel.");
+        }
+    }
+}
