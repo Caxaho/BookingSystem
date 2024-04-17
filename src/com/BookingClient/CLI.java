@@ -3,7 +3,6 @@ package com.BookingClient;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.CancellationException;
-import java.util.stream.Collectors;
 
 /**
  * Utility class to print to the CLI and get user input.
@@ -171,6 +170,7 @@ public final class CLI {
      * Executed when in the 'LOGGED_IN' state in the ProgramState state machine.
      * @param currentUser Currently logged-in user.
      * @return Choice made by user (Book Show 'b' = 0, Cancel Show 'c' = 1, exit 'e' = -1, invalid choice = -1).
+     * @throws IllegalArgumentException When a user selects an action that they are not permitted to perform.
      */
     public static int loggedInChoice(User currentUser) throws IllegalArgumentException{
         User.AccountType userType = currentUser.getAccountType();
@@ -259,6 +259,7 @@ public final class CLI {
     /**
      * Displays the seats to the user and indicates if the seats are empty, held, or booked.
      * @param showID Show ID of the show to display seats for.
+     * @throws RuntimeException When there is an error retrieving the seating data.
      */
     public static void displaySeats(Venue venue, int showID) throws RuntimeException{
         Show show = venue.getShow(showID);
@@ -281,7 +282,7 @@ public final class CLI {
                 input = (input - 1) / 26;
             }
             for (int j = 0; j < numRows; j++) {
-                Seat.SeatStatus status = Seat.SeatStatus.EMPTY; // Getting seat status
+                Seat.SeatStatus status; // Getting seat status
                 try {
                     Seat seat = show.getSeat(String.format("%s%d",rowLetter,j+1));
                     status = seat.getStatus();
@@ -458,8 +459,8 @@ public final class CLI {
 
         // Get card details
         int stage = 0;
-        String cardNumber = "";
-        String securityNumber = "";
+        String cardNumber = ""; // Stores card number (never used as all card numbers with valid format are accepted)
+        String securityNumber = ""; // Stores security number (never used as all security numbers with valid format are accepted)
         while (stage < 2) {
             printChoices(true,"Exit (e)", String.format("Enter %s:", stage == 0 ? "Card Number (with format XXXX-XXXX-XXXX-XXXX)" : "Security Number"));
             String line = input.nextLine();
