@@ -1,6 +1,9 @@
 package com.BookingClient;
 
+import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 
@@ -11,7 +14,9 @@ public final class CLI {
 
     private static final Scanner input = new Scanner(System.in); //For user input
 
-    private CLI(){}
+    private CLI() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated.");
+    }
 
     /**
      * Prints any number of strings on a new line per string, with the optional starting string "Please select an option:"
@@ -45,6 +50,31 @@ public final class CLI {
             }
         }
         throw new IllegalArgumentException("Invalid username or password!");
+    }
+
+    /**
+     * Validates a date to be in the future.
+     * @param date Date to validate.
+     * @return True if date is the correct format and in the future.
+     */
+    public static boolean validFutureDate(String date) {
+        // Validating date structure with regex and parsing it with the SimpleDateFormat class
+        if (date.matches("^\\d{1,2}/\\d{1,2}/\\d{4}$")) {
+            SimpleDateFormat inputDate = new SimpleDateFormat("dd/MM/yyyy"); // Created to validate the date
+            inputDate.setLenient(false); // Setting the SimpleDateFormat to be strict
+            try {
+                inputDate.parse(date); // Parsing date (ParseException raised if invalid/impossible date)
+                /* Validating date is in the future */
+                Calendar inputCal = inputDate.getCalendar(); // Convert input date to Calendar object
+                Calendar currentCal = Calendar.getInstance(); // Get current date
+                if (inputCal.after(currentCal)) {
+                    return true; // Valid date if input date is in the future, and a valid format
+                }
+            } catch (ParseException ignored) {
+                // Catch ParseException and ignore, as it will return false at the end of the method anyway
+            }
+        }
+        return false; // Returns false if 'date' given was of the wrong format, not a real date, or in the past.
     }
 
     /**
@@ -207,22 +237,76 @@ public final class CLI {
     }
 
     /**
-     * Retrieves and validates show selection from user.
-     * @return Show ID picked by the user, or -1 if 'e' is inputted.
+     * Validates and retrieves user input for a date range in the future
+     * @return Date range as Calendar[2] (if valid), otherwise date range from present time to 1 year in the future.
+     * @throws ParseException If dates fail to parse after they have been validated. Should be impossible.
+     * @throws IllegalArgumentException If invalid date format is inputted by the user.
      */
-    public static int selectShow(Venue venue) {
+    public static Calendar[] getFutureDateRange() throws ParseException, IllegalArgumentException {
+        printChoices(false,"Exit (e)", "Please enter a date range in the format dd/MM/yyyy-dd/MM/yyyy (If dates in the past are entered, all shows within the next year will be displayed):");
+        String line = input.nextLine(); // Get user input
+        String[] splitLine = line.split("-"); // Split user input into separate Strings using regex '-'
+        DateFormat df = new SimpleDateFormat("dd/MM/yyyy"); // Date format to convert dates back to strings at the end
+        /* Validate correct number of inputs */
+        if (splitLine.length != 2) {
+            throw new IllegalArgumentException("Invalid date range!");
+        }
+        /* Validate dates are in correct format and in the future. If not, returns large date range (present to +1 year in the future) */
+        if (!(validFutureDate(splitLine[0]) && validFutureDate(splitLine[1]))) {
+            /* Create present and future Calendars, then Dates from those Calendars */
+            // Calendars
+            Calendar present = Calendar.getInstance(); // Initialise present Calendar
+            Calendar future = Calendar.getInstance(); // Initialise future Calendar
+            future.add(Calendar.YEAR, 1); // Add 1 year to 'future' Calendar
+            return new Calendar[]{present, future}; // Return date range from present to 1 year in the future
+        }
+        /* Orders dates from lowest to highest and returns them */
+        // Converting validated string inputs into Calendar objects
+        Calendar first = Calendar.getInstance();
+        first.setTime(df.parse(splitLine[0]));
+        Calendar second = Calendar.getInstance();
+        second.setTime(df.parse(splitLine[1]));
+        if (first.before(second)) {
+            return new Calendar[]{first, second};
+        } else {
+            return new Calendar[]{second, first};
+        }
+    }
+
+    /**
+     * Retrieves and validates show selection from user.
+     * @param venue Venue to retrieve the shows of.
+     * @return Show ID picked by the user, or -1 if 'e' is inputted.
+     * @throws IllegalArgumentException On user input validation error.
+     * @throws ParseException On user input parse error. The parsing occurs after validation so this exception should never occur.
+     */
+    public static int selectShow(Venue venue) throws ParseException, IllegalArgumentException {
+        Calendar[] dateRange = getFutureDateRange(); // Get validated date range from user.
         boolean validOption = false;
         while (!validOption) {
             printChoices(false, "exit (e)", "Please select a show: ");
-            int count = 1; // Counter for shows in Venue
-            int[] showIDs = new int[venue.getShows().size()]; // Array to hold all show IDs
-            // Displaying all shows to the user
-            for (Show show: venue.getShows()) {
-                System.out.printf("(%d) Name: %s\n\tTime: %s \n", count, show.getName(), show.getTime().getTime());
-                showIDs[count-1] = show.getID();
-                count += 1;
+            /* Get ShowIDs of Shows within date range */
+            ArrayList<Show> allShows = venue.getShows(); // Get all shows in venue
+            ArrayList<Show> validShows = new ArrayList<>();
+            for (Show show : allShows) {
+                if (show.getTime().after(dateRange[0]) && show.getTime().before(dateRange[1])) {
+                    validShows.add(show);
+                }
             }
-            /* Getting and validating user input */
+            // If there are no shows matching the user's criteria, notify the user of this, and return -1.
+            if (validShows.isEmpty()) {
+                System.out.println("No shows match the criteria entered.");
+                return -1;
+            }
+            /* Displaying all shows to the user */
+            int[] showIDs = new int[validShows.size()]; // Array to hold all show IDs
+            // Display shows
+            for (int i = 1; i <= validShows.size(); i++) {
+                Show show = validShows.get(i-1);
+                System.out.printf("(%d) Name: %s\n\tTime: %s \n", i, show.getName(), show.getTime().getTime());
+                showIDs[i-1] = show.getID();
+            }
+            /* Getting and validating user input for show selection */
             String line = input.nextLine();
             try {
                 int choice = Integer.parseInt(line);

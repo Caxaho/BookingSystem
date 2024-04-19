@@ -1,5 +1,6 @@
 package com.BookingClient;
 
+import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
@@ -9,7 +10,7 @@ public class Main {
     public enum ProgramState {
         START {
             @Override
-            public ProgramState nextState(int choice) {
+            public ProgramState nextState(int choice) throws IllegalArgumentException {
                 switch (choice) {
                     case 0:
                         return REQUEST_LOGIN;
@@ -50,7 +51,7 @@ public class Main {
         },
         LOGGED_IN {
             @Override
-            public ProgramState nextState(int choice) {
+            public ProgramState nextState(int choice) throws IllegalArgumentException {
                 switch (choice) {
                     case 0:
                         return SELECT_SHOW;
@@ -67,7 +68,7 @@ public class Main {
         },
         SELECT_SHOW {
             @Override
-            public ProgramState nextState(int choice) {
+            public ProgramState nextState(int choice) throws IllegalArgumentException {
                 switch (choice) {
                     case 0:
                         return AUTOMATIC_SELECTION;
@@ -128,12 +129,12 @@ public class Main {
         },
         EXIT {
             @Override
-            public ProgramState nextState(int choice) {
+            public ProgramState nextState(int choice) throws IllegalArgumentException {
                 throw new UnsupportedOperationException("No 'nextState' for 'EXIT' state");
             }
 
             @Override
-            public ProgramState previousState() {
+            public ProgramState previousState() throws IllegalArgumentException {
                 throw new UnsupportedOperationException("No 'nextState' for 'EXIT' state");
             }
         };
@@ -141,15 +142,13 @@ public class Main {
         public abstract ProgramState previousState();
     }
 
-    static ProgramState state = ProgramState.START; // State machine instance
+    static ProgramState state = ProgramState.START; // State machine instance initialised to 'START' state
     static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 20, 27); // Single venue since it never changes
     static User currentUser; //Current logged in user
-//    static Scanner input = new Scanner(System.in); // For getting user input
     static ArrayList<User> users = new ArrayList<>(); //Stores all the users, this would usually be in a database.
 
     public static void main(String[] args) {
         AddDefaults(bcpa, users); // Adds default users and shows.
-
 
         /* Important Variable Initialization */
         int currentShowSelectedID = -1; // Current showID selected by user (BAD IMPLEMENTATION)
@@ -161,7 +160,7 @@ public class Main {
         while (!exit) {
             switch (state) {
                 case START:
-                    choice = CLI.start(); // Perform operations for START state and return the state to move to
+                    choice = CLI.start(); // Perform operations for START state and return the state to move to.
                     state = choice >= 0 ? state.nextState(choice) : state.previousState();
                     break;
                 case REQUEST_LOGIN:
@@ -201,16 +200,15 @@ public class Main {
                 case SELECT_SHOW:
                     try {
                         currentShowSelectedID = CLI.selectShow(bcpa);
-                        if (currentShowSelectedID >= 0) {
-                            choice = CLI.selectSeatingTypeChoice();
-                        } else {
-                            choice = currentShowSelectedID;
-                        }
-                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
-
-                    } catch (IllegalArgumentException e) {
-                        System.out.println("Invalid input, please try again!");
+                    } catch (ParseException | IllegalArgumentException e) {
+                        System.out.println("An error occurred when parsing user input, returning to previous state.");
                     }
+                    if (currentShowSelectedID >= 0) {
+                        choice = CLI.selectSeatingTypeChoice();
+                    } else {
+                        choice = currentShowSelectedID;
+                    }
+                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
                     break;
                 case AUTOMATIC_SELECTION:
                     state = CLI.seatSelection(bcpa, currentShowSelectedID, currentUserSeatsSelected, true) ? state.nextState(0) : state.previousState();
@@ -254,3 +252,4 @@ public class Main {
         venue.addShow("Test Show 2", calTest2);
     }
 }
+
