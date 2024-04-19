@@ -6,6 +6,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CancellationException;
+import java.util.stream.Collectors;
 
 /**
  * Utility class to print to the CLI and get user input.
@@ -243,10 +244,9 @@ public final class CLI {
      * @throws IllegalArgumentException If invalid date format is inputted by the user.
      */
     public static Calendar[] getFutureDateRange() throws ParseException, IllegalArgumentException {
-        printChoices(false,"Exit (e)", "Please enter a date range in the format dd/MM/yyyy-dd/MM/yyyy (If dates in the past are entered, all shows within the next year will be displayed):");
+        printChoices(false,"Exit (any character)", "Please enter a date range in the format dd/MM/yyyy-dd/MM/yyyy (If invalid or past dates are entered, all shows within the next year will be displayed):");
         String line = input.nextLine(); // Get user input
         String[] splitLine = line.split("-"); // Split user input into separate Strings using regex '-'
-        DateFormat df = new SimpleDateFormat("dd/MM/yyyy"); // Date format to convert dates back to strings at the end
         /* Validate correct number of inputs */
         if (splitLine.length != 2) {
             throw new IllegalArgumentException("Invalid date range!");
@@ -262,6 +262,7 @@ public final class CLI {
         }
         /* Orders dates from lowest to highest and returns them */
         // Converting validated string inputs into Calendar objects
+        DateFormat df = new SimpleDateFormat("dd/MM/yyyy"); // Date format to convert dates back to strings
         Calendar first = Calendar.getInstance();
         first.setTime(df.parse(splitLine[0]));
         Calendar second = Calendar.getInstance();
@@ -420,7 +421,7 @@ public final class CLI {
                 validChoice = true;
             } else {
                 try {
-                    if (line.matches("^\\d+.\\d{1,2}-\\d+.\\d{1,2}$")) {
+                    if (line.matches("^\\d+\\.?\\d{0,2}-\\d+\\.?\\d{0,2}$")) {
                         String[] pricesStrings = line.split("-");
                         return new float[]{Float.parseFloat(pricesStrings[0]), Float.parseFloat(pricesStrings[1])};
                     }
@@ -450,6 +451,13 @@ public final class CLI {
 
         // Ask for number of tickets
         int numTickets = chooseNumberOfSeats(venue, showID);
+        /* Get and display price range of seats (min and max price) */
+        DecimalFormat df = new DecimalFormat("0.00"); // Decimal format used to truncate min and max prices
+        List<Seat> seats = Arrays.asList(venue.getShow(showID).getSeats()); // All seats in show
+        List<Float> seatPrices = seats.stream().map(Seat::getPrice).collect(Collectors.toList()); // Prices of all seats in show
+        Float maxPrice = Collections.max(seatPrices);
+        Float minPrice = Collections.min(seatPrices);
+        System.out.printf("%nMinimum Seat Price: £%s%nMaximum Seat Price: £%s%n%n", df.format(minPrice), df.format(maxPrice));
 
         // Automatic Seat Selection (assuming front seats are best and back seats are the worst)
         if (autoPickSeats) {
@@ -458,7 +466,7 @@ public final class CLI {
             //Getting the best available seats in price range (lower ID is better and seat list is created from the lowest ID to highest)
             ArrayList<Integer> seatIDs = new ArrayList<>();
             for (Seat seat : venue.getShow(showID).getSeats()) {
-                if (seat.getStatus() == Seat.SeatStatus.EMPTY && seat.getPrice() < priceRange[1] && seat.getPrice() > priceRange[0]) {
+                if (seat.getStatus() == Seat.SeatStatus.EMPTY && seat.getPrice() <= priceRange[1] && seat.getPrice() >= priceRange[0]) {
                     seatIDs.add(seat.getID());
                 }
             }
@@ -477,12 +485,14 @@ public final class CLI {
             }
         }
 
-        //Interactive Seat selection
+        /* Interactive Seat selection */
         boolean acceptedSeatSelection = false;
         while (!acceptedSeatSelection) {
             // Show seats and wait for selection
             displaySeats(venue, showID);
-            printChoices(true,"exit (e)", "accept selection (a)",String.format("Please select a seat you would like to book (In the format 'B3', 'A4', etc.)\n You have picked %d out of %d seats\n", seatSelection.size(), numTickets));
+            printChoices(true,"exit (e)", "accept selection (a)",String.format("Please select a seat you would like to book (In the format 'B3', 'A4', etc.)\n You have picked %d out of %d seats", seatSelection.size(), numTickets));
+            String delimitedSeatsList = seatSelection.stream().map(Seat::getPos).collect(Collectors.joining(",")); // Seats chosen
+            System.out.printf("Seats Selected: %s%n", delimitedSeatsList);
             line = input.nextLine();
             switch (line) {
                 case "e":

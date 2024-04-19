@@ -91,7 +91,7 @@ public class Main {
 
             @Override
             public ProgramState previousState() {
-                return SELECT_SHOW;
+                return LOGGED_IN;
             }
         },
         INTERACTIVE_SELECTION {
@@ -102,7 +102,7 @@ public class Main {
 
             @Override
             public ProgramState previousState() {
-                return SELECT_SHOW;
+                return LOGGED_IN;
             }
         },
         PAYMENT {
@@ -202,6 +202,7 @@ public class Main {
                         currentShowSelectedID = CLI.selectShow(bcpa);
                     } catch (ParseException | IllegalArgumentException e) {
                         System.out.println("An error occurred when parsing user input, returning to previous state.");
+                        currentShowSelectedID = -1; // Setting selected Show ID to an invalid ID to force previous state.
                     }
                     if (currentShowSelectedID >= 0) {
                         choice = CLI.selectSeatingTypeChoice();
