@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 public class Main {
     static int MIN_REGISTRATION_AGE = 12;
+
     public enum ProgramState {
         START {
             @Override
@@ -129,12 +130,12 @@ public class Main {
         },
         EXIT {
             @Override
-            public ProgramState nextState(int choice) throws IllegalArgumentException {
+            public ProgramState nextState(int choice) throws UnsupportedOperationException {
                 throw new UnsupportedOperationException("No 'nextState' for 'EXIT' state");
             }
 
             @Override
-            public ProgramState previousState() throws IllegalArgumentException {
+            public ProgramState previousState() throws UnsupportedOperationException {
                 throw new UnsupportedOperationException("No 'nextState' for 'EXIT' state");
             }
         };
