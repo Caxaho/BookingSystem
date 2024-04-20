@@ -27,6 +27,8 @@ public class Venue {
 
     public void addShow(String name, Calendar time) { shows.add(new Show(name, time, numRows, numCols)); }
 
+    public void addShow(Show show) { shows.add(show); }
+
     public void cancelShow(int showID) {
         if (!shows.removeIf(show -> show.getID() == showID)) {
             throw new NoSuchElementException("The 'showID' does not exist");

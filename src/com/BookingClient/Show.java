@@ -11,7 +11,7 @@ public class Show {
     private Calendar time;
     private final Seat[] seats;
     private Promotion promotion;
-    private float minSeatPrice = 10.0f;
+    private float defaultSeatPrice = 10.0f;
     private int maxSeatsPerUser = 50;
 
     public Show(String name, Calendar time, int numRows, int numCols) {
@@ -39,7 +39,7 @@ public class Show {
             for (int j = 0; j < numRows; j++) {
                 int count = i*numRows + j;
                 String seatName = String.format("%s%s", rowNames[i], j+1);
-                seats[count] = new Seat(count, seatName, minSeatPrice);
+                seats[count] = new Seat(count, seatName, defaultSeatPrice);
             }
         }
     }
@@ -58,9 +58,9 @@ public class Show {
 
     public void setTime(Calendar time) { this.time = time; }
 
-    public float getMinSeatPrice() { return minSeatPrice; }
+    public float getDefaultSeatPrice() { return defaultSeatPrice; }
 
-    public void setMinSeatPrice(float price) { this.minSeatPrice = price; }
+    public void setDefaultSeatPrice(float price) { this.defaultSeatPrice = price; }
 
     public int getMaxSeatsPerUser() { return maxSeatsPerUser; }
 
@@ -70,7 +70,7 @@ public class Show {
 
     public void setPromotion(Promotion promotion) { this.promotion = promotion; }
 
-    public Seat getSeat(int seatID) {
+    public Seat getSeat(int seatID) throws NoSuchElementException {
         for (Seat seat : seats) {
             if (seat.getID() == seatID) {
                 return seat;
@@ -79,7 +79,7 @@ public class Show {
         throw new NoSuchElementException("The 'seatID' requested does not exist");
     }
 
-    public Seat getSeat(String seatName) {
+    public Seat getSeat(String seatName) throws NoSuchElementException {
         for (Seat seat : seats) {
             if (seatName.equals(seat.getPos())) {
                 return seat;

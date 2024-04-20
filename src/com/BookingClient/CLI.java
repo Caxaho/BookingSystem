@@ -79,7 +79,7 @@ public final class CLI {
     }
 
     /**
-     * Executed when in the 'START' state in the ProgramState state machine.
+     * Retrieves and validates user input for selecting an option when in the initial program state.
      * @return Choice made by user (login 'l' = 0, register 'r' = 1, exit 'e' = 2, invalid choice = -1).
      */
     public static int start() {
@@ -216,6 +216,7 @@ public final class CLI {
             case AGENT:
                 break;
             case VENUE_MANAGER:
+                printChoices(true, "Manage Shows(s)", "Manage Promotions(p)", "Logout (e)");
                 break;
         }
         // Get input
@@ -223,15 +224,39 @@ public final class CLI {
         switch (line) {
             case "e":
                 return -1;
+//                break;
             case "b":
                 choice = 0;
                 break;
             case "c":
                 choice = 1;
                 break;
+            case "s":
+                choice = 2;
+                break;
+            case "p":
+                choice = 3;
+                break;
         }
-        // Ensures only the choices available to the current user are selectable
-        if (!(userType == User.AccountType.CUSTOMER && choice <= 1 && choice >= 0)) {
+        // Validates user choice. Ensures only the choices available to the current user are selectable
+        boolean validChoice = true;
+        switch (userType) {
+            case CUSTOMER:
+                if (!(choice <= 1 && choice >= 0)) {
+                    validChoice = false;
+                }
+                break;
+            case ADMIN:
+                break;
+            case AGENT:
+                break;
+            case VENUE_MANAGER:
+                if (!(choice <= 3 && choice >= 2)) {
+                    validChoice = false;
+                }
+                break;
+        }
+        if (!validChoice) {
             throw new IllegalArgumentException("User not permitted to perform this action.");
         }
         return choice;
@@ -620,5 +645,88 @@ public final class CLI {
             return;
         }
         input.nextLine(); //If it is not an integer, the scanner will read and dispose of the next line
+    }
+
+    /**
+     * Retrieves and validates user input for selecting an option to manage the shows.
+     * @return Choice made by user (delete show 'd' = 0, add show 'a' = 1, reschedule show 'r' = 2, exit 'e' = -1, invalid choice = -1).
+     */
+    public static int manageShows() {
+        printChoices(true,"Delete Show(d)", "Add Show(a)", "Reschedule Show(r)", "Exit (e)");
+        String line = input.nextLine(); // Get user input
+        switch (line) {
+            case "d":
+                return 0;
+            case "a":
+                return 1;
+            case "r":
+                return 2;
+            case "e":
+                return -1;
+        }
+        return -1; // Invalid choice
+    }
+
+    public static void removeShow() {
+    }
+
+    /**
+     * Creates a show for a specified venue with validated user input.
+     * @param venue Venue to create show for.
+     * @return Show object with user inputted and validated values.
+     * @throws CancellationException If exit ('e') is inputted.
+     */
+    public static Show createShow(Venue venue) throws CancellationException {
+        // Array of the strings used to request the account requirements from the user
+        String[] showRequirements = new String[]{
+                "Show Name",
+                "Date and Time of the show (in the format 'dd/MM/yyyy 00:00' where '00:00' is 24 hour time format)"
+        };
+        // Variables to store the validated user inputted show details
+        String showName = "Unnamed Show";
+        Calendar showTime = Calendar.getInstance();
+        /* Getting and validating user input */
+        int stage = 0;
+        String requirement;
+        boolean validEntry;
+        while (stage < showRequirements.length) {
+            validEntry = false;
+            requirement = showRequirements[stage]; // Current stage's requirement string
+            printChoices(false, "Exit (e)", String.format("Enter the %s:", requirement));
+            String line = input.nextLine(); // Get user input
+            if (line.equals("e")) {
+                throw new CancellationException("Exit ('e') was inputted by the user."); // Return false if exit 'e' is inputted
+            } else {
+                switch (stage) {
+                    case 0: // Show Name
+                        validEntry = true; // Show name is always valid (could be literally any string)
+                        showName = line; // Set show name
+                        break;
+                    case 1: // Date and Time of Show
+                        String[] splitLine = line.split("\\s");
+                        if (splitLine.length != 2) { break; } // Invalid number of entries
+                        if (!validFutureDate(splitLine[0])) { break; } // Invalid future date
+                        if (!splitLine[1].matches("^([01][0-9]|2[0-3]):([0-5][0-9])$")) { break; } // Invalid time format
+                        validEntry = true;
+                        /* Setting show time */
+                        int[] splitDate = Arrays.stream(splitLine[0].split("/")).mapToInt(Integer::parseInt).toArray(); // Get array of date, month, and year
+                        int[] splitTime = Arrays.stream(splitLine[1].split(":")).mapToInt(Integer::parseInt).toArray(); // Get array of hour and minute
+                        showTime.set(splitDate[2], splitDate[1]-1, splitDate[0], splitTime[0], splitTime[1]); // Set show time
+                        showTime.set(Calendar.SECOND, 0);
+                        break;
+                }
+                // If valid entry, increase stage, otherwise display validation error
+                if (validEntry) {
+                    stage += 1;
+                } else {
+                    System.out.printf("Please enter a valid %s%n", showRequirements[stage]);
+                }
+            }
+        }
+        /* Create and return show */
+        return new Show(showName, showTime, venue.getNumRows(), venue.getNumCols());
+    }
+
+    public static void rescheduleShow() {
     }
 }

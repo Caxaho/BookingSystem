@@ -58,6 +58,10 @@ public class Main {
                         return SELECT_SHOW;
                     case 1:
                         return CANCEL_SHOW;
+                    case 2:
+                        return MANAGE_SHOWS;
+                    case 3:
+                        return MANAGE_PROMOTIONS;
                 }
                 throw new IllegalArgumentException("choice out of bounds");
             }
@@ -126,6 +130,69 @@ public class Main {
             @Override
             public ProgramState previousState() {
                 return LOGGED_IN;
+            }
+        },
+        MANAGE_SHOWS {
+            @Override
+            public ProgramState nextState(int choice) {
+                switch (choice) {
+                    case 0:
+                        return REMOVE_SHOW;
+                    case 1:
+                        return ADD_SHOW;
+                    case 2:
+                        return RESCHEDULE_SHOW;
+                }
+                throw new IllegalArgumentException("choice out of bounds");
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
+            }
+        },
+        REMOVE_SHOW {
+            @Override
+            public ProgramState nextState(int choice) {
+                return LOGGED_IN;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
+            }
+        },
+        ADD_SHOW {
+            @Override
+            public ProgramState nextState(int choice) {
+                return LOGGED_IN;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
+            }
+        },
+        RESCHEDULE_SHOW {
+            @Override
+            public ProgramState nextState(int choice) {
+                return LOGGED_IN;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
+            }
+        },
+        MANAGE_PROMOTIONS {
+            @Override
+            public ProgramState nextState(int choice) {
+                return EXIT;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return EXIT;
             }
         },
         EXIT {
@@ -223,6 +290,31 @@ public class Main {
                     break;
                 case CANCEL_SHOW:
                     CLI.cancelShowChoice(currentUser, bcpa);
+                    state = state.nextState(0);
+                    break;
+                case MANAGE_SHOWS:
+                    try {
+                        choice = CLI.manageShows();
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    } catch (IllegalArgumentException e) {
+                        System.out.println("Invalid input, please try again!");
+                    }
+                    break;
+                case REMOVE_SHOW:
+                    CLI.removeShow();
+                    state = state.nextState(0);
+                    break;
+                case ADD_SHOW:
+                    try {
+                        bcpa.addShow(CLI.createShow(bcpa));
+                        System.out.println("Added show successfully!");
+                    } catch (CancellationException e) {
+                        System.out.println("Exiting...");
+                    }
+                    state = state.nextState(0);
+                    break;
+                case RESCHEDULE_SHOW:
+                    CLI.rescheduleShow();
                     state = state.nextState(0);
                     break;
                 default:
