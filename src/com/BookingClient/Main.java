@@ -237,8 +237,11 @@ public class Main {
      */
     private static void AddDefaults(Venue venue, ArrayList<User> userList) {
         /* Creating Default Users and Shows */
-        // Default customer
+        // Default Users for Testing (Customer, VenueManager, Agent, and Admin)
         userList.add(new Customer("wef","wef","wef@wef.com", "07259622506", "wefwef", "04/07/2001", "1 Normal Place, Somewhere, SW26 6EB"));
+        userList.add(new VenueManager("Steve Venue", "venue_steve", "vsteve@bcpa.com", "VenueSteve25%"));
+        userList.add(new Agent("Michael Agent", "agent_michael", "agent@external.com", "AgentMichael25%"));
+        userList.add(new Admin("Xavier Admin", "admin_xavier", "admin@bcpa.com", "AdminXavier25%"));
         // Default shows
         Calendar calTest1 = Calendar.getInstance();
         calTest1.set(Calendar.YEAR, 2024);
