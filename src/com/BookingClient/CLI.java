@@ -257,7 +257,6 @@ public final class CLI {
         switch (line) {
             case "e":
                 return -1;
-//                break;
             case "b":
                 choice = 0;
                 break;
@@ -874,6 +873,10 @@ public final class CLI {
         System.out.println("Failed to apply promotion. Please try again.");
     }
 
+    /**
+     * Create a new promotion for a specified venue.
+     * @param venue Venue to create promotion for.
+     */
     public static void createPromotion(Venue venue) {
         /* Get Name of Promotion */
         printChoices(true, "Exit (e)", "Please enter a name for the promotion");
@@ -942,6 +945,24 @@ public final class CLI {
         }
     }
 
-    public static void removePromotion(Venue venue) {
+    /**
+     * Remove promotion from a show.
+     * @param venue Venue to remove a show promotion from.
+     */
+    public static void removePromotion(Venue venue) throws RuntimeException {
+        /* Display Options */
+        printChoices(false, "Exit (any character)");
+        /* Get show to remove promotion from */
+        int selectedShowID;
+        try {
+            selectedShowID = selectShow(venue, false);
+        } catch (ParseException | IllegalArgumentException e) {
+            System.out.println("Invalid show selection.");
+            throw new RuntimeException(e);
+        }
+        if (selectedShowID < 0) { return; } // Invalid/exit response from selectShow() so return
+        /* Remove promotion from show (set back to default promotion) */
+        venue.getShow(selectedShowID).removePromotion();
+        System.out.println("Removed promotion from selected show.");
     }
 }

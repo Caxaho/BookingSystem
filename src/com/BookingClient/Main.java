@@ -251,144 +251,152 @@ public class Main {
         public abstract ProgramState previousState();
     }
 
+    /* Important Variable Initialization */
     static ProgramState state = ProgramState.START; // State machine instance initialised to 'START' state
     static Venue bcpa = new Venue("Bucks Centre for the Performing Arts (BCPA)", 20, 27); // Single venue since it never changes
     static User currentUser; //Current logged in user
     static ArrayList<User> users = new ArrayList<>(); //Stores all the users, this would usually be in a database.
+    static int currentShowSelectedID = -1; // Current showID selected by user
+    static LinkedList<Seat> currentUserSeatsSelected = new LinkedList<>(); // Create LinkedList of current seats chosen (FIFO)
 
     public static void main(String[] args) {
         AddDefaults(bcpa, users); // Adds default users and shows.
 
-        /* Important Variable Initialization */
-        int currentShowSelectedID = -1; // Current showID selected by user (BAD IMPLEMENTATION)
-        LinkedList<Seat> currentUserSeatsSelected = new LinkedList<>(); // Create LinkedList of current seats chosen (FIFO) (BAD IMPLEMENTATION)
+
 
         boolean exit = false; // Boolean for main loop control
         int choice; // Holds choice for each state's function return
         // Main Loop
         while (!exit) {
+            // Checking state and acting accordingly
             switch (state) {
                 case START:
-                    choice = CLI.start(); // Perform operations for START state and return the state to move to.
-                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    choice = CLI.start(); // Retrieve next state choice
+                    state = choice >= 0 ? state.nextState(choice) : state.previousState(); // Move states according to choice
                     break;
                 case REQUEST_LOGIN:
                     try {
-                        currentUser = CLI.loginChoice(users);
-                        state = state.nextState(0);
+                        currentUser = CLI.loginChoice(users); // Attempt login and retrieve user on success
+                        state = state.nextState(0); // Next state
                     } catch (CancellationException | IllegalArgumentException e) {
-                        state = state.previousState();
+                        System.out.println("Failed login. Exiting...");
+                        state = state.previousState(); // Failed login, return to previous state
                     }
                     break;
                 case REGISTRATION:
                     try {
-                        User newUser = CLI.registration(MIN_REGISTRATION_AGE);
+                        User newUser = CLI.registration(MIN_REGISTRATION_AGE); // Attempt to create new user, retrieve new user on success
                         /* Check for duplicate user */
                         List<String> usernames = users.stream().map(User::getUsername).collect(Collectors.toList()); // Get usernames of all users
                         List<String> emails = users.stream().map(User::getEmail).collect(Collectors.toList()); // Get email addresses of all users
                         if (!(usernames.contains(newUser.getUsername()) || emails.contains(newUser.getEmail()))) {
                             users.add(newUser); // Create new user
-                            currentUser = newUser;
-                            state = state.nextState(0);
+                            currentUser = newUser; // Set current user to newly registered user
+                            state = state.nextState(0); // Next state
                         } else {
                             System.out.println("Account creation unsuccessful. You cannot create accounts with duplicate email addresses or usernames!");
-                            state = state.previousState();
+                            state = state.previousState(); // Duplicate account creation attempt, return to previous state
                         }
                     } catch (CancellationException | IllegalArgumentException e) {
-                        state = state.previousState();
+                        System.out.println("Account creation unsuccessful. Exiting...");
+                        state = state.previousState(); // Unsuccessful account creation, return to previous state
                     }
                     break;
                 case LOGGED_IN:
                     try {
-                        choice = CLI.loggedInChoice(currentUser);
-                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                        choice = CLI.loggedInChoice(currentUser); // Retrieve next state choice
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState(); // Move states according to choice
                     } catch (IllegalArgumentException e) {
                         System.out.println("Invalid input, please try again!");
                     }
                     break;
                 case SELECT_SHOW:
                     try {
-                        currentShowSelectedID = CLI.selectShow(bcpa, true);
+                        currentShowSelectedID = CLI.selectShow(bcpa, true); // Retrieve show ID from user's selection
                     } catch (ParseException | IllegalArgumentException e) {
                         System.out.println("An error occurred when parsing user input, returning to previous state.");
                         currentShowSelectedID = -1; // Setting selected Show ID to an invalid ID to force previous state.
                     }
+                    // Verifying that a show ID was returned
                     if (currentShowSelectedID >= 0) {
-                        choice = CLI.selectSeatingTypeChoice();
+                        choice = CLI.selectSeatingTypeChoice(); // Retrieve seating choice (Automatic or Interactive)
                     } else {
-                        choice = currentShowSelectedID;
+                        choice = currentShowSelectedID; // When choice<0, it will return to the previous state
                     }
-                    state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    state = choice >= 0 ? state.nextState(choice) : state.previousState(); // Move states according to choice
                     break;
                 case AUTOMATIC_SELECTION:
+                    // Move states depending on if seat selection was successful
                     state = CLI.seatSelection(bcpa, currentShowSelectedID, currentUserSeatsSelected, true) ? state.nextState(0) : state.previousState();
                     break;
                 case INTERACTIVE_SELECTION:
+                    // Move states depending on if seat selection was successful
                     state = CLI.seatSelection(bcpa, currentShowSelectedID, currentUserSeatsSelected, false) ? state.nextState(0) : state.previousState();
                     break;
                 case PAYMENT:
+                    // Move state depending on if payment was successful
                     state = CLI.paymentChoice(currentUser, currentShowSelectedID, currentUserSeatsSelected) ? state.nextState(0) : state.previousState();
                     break;
                 case CANCEL_SHOW:
-                    CLI.cancelShowChoice(currentUser, bcpa);
-                    state = state.nextState(0);
+                    CLI.cancelShowChoice(currentUser, bcpa); // Attempt to cancel a show
+                    state = state.nextState(0); // Move to next state
                     break;
                 case MANAGE_SHOWS:
                     try {
-                        choice = CLI.manageShows();
-                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                        choice = CLI.manageShows(); // Retrieve next state choice
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState(); // Move states according to choice
                     } catch (IllegalArgumentException e) {
                         System.out.println("Invalid input, please try again!");
                     }
                     break;
                 case REMOVE_SHOW:
                     try {
-                        CLI.removeShow(bcpa);
-                    } catch (RuntimeException ignored) {} // Ignored because will always return to previous state
+                        CLI.removeShow(bcpa); // Attempt to remove show
+                    } catch (RuntimeException ignored) {} // Ignored because will always move to next state
                     System.out.println("Exiting...");
-                    state = state.nextState(0);
+                    state = state.nextState(0); // Move to next state
                     break;
                 case ADD_SHOW:
                     try {
                         bcpa.addShow(CLI.createShow(bcpa));
                         System.out.println("Added show successfully!");
-                    } catch (CancellationException ignored) {} // Ignored because will always return to previous state
+                    } catch (CancellationException ignored) {} // Ignored because will always move to next state
                     System.out.println("Exiting...");
-                    state = state.nextState(0);
+                    state = state.nextState(0); // Move to next state
                     break;
                 case RESCHEDULE_SHOW:
                     try {
                         CLI.rescheduleShow(bcpa);
-                    } catch (RuntimeException ignored) {} // Ignored because will always return to previous state
+                    } catch (RuntimeException ignored) {} // Ignored because will always move to next state
                     System.out.println("Exiting...");
-                    state = state.nextState(0);
+                    state = state.nextState(0);// Move to next state
                     break;
                 case MANAGE_PROMOTIONS:
                     try {
-                        choice = CLI.managePromotions();
-                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                        choice = CLI.managePromotions(); // Retrieve next state choice
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState(); // Move states according to choice
                     } catch (IllegalArgumentException e) {
                         System.out.println("Invalid input, please try again!");
                     }
                     break;
                 case APPLY_PROMOTION:
                     try {
-                        CLI.applyPromotion(bcpa);
-                    } catch (RuntimeException ignored) {} // Ignored because will always return to previous state
+                        CLI.applyPromotion(bcpa); // Attempt to apply promotion
+                    } catch (RuntimeException ignored) {} // Ignored because will always move to next state
                     System.out.println("Exiting...");
-                    state = state.nextState(0);
+                    state = state.nextState(0); // Move to next state
                     break;
                 case CREATE_PROMOTION:
-                    CLI.createPromotion(bcpa);
+                    CLI.createPromotion(bcpa); // Attempt to create promotion
                     System.out.println("Exiting...");
-                    state = state.nextState(0);
+                    state = state.nextState(0); // Move to next state
                     break;
                 case REMOVE_PROMOTION:
-//                    try {
-//                        CLI.removePromotion(bcpa);
-//                    }
+                    try {
+                        CLI.removePromotion(bcpa); // Attempt to remove promotion
+                    } catch (RuntimeException ignored) {} // Ignored because will always move to next state
                     System.out.println("Exiting...");
-                    state = state.nextState(0);
+                    state = state.nextState(0); // Move to next state
                     break;
                 default:
                     exit = true;
@@ -421,7 +429,7 @@ public class Main {
         calTest2.set(Calendar.HOUR, 19);
         venue.addShow("Test Show 2", calTest2);
         // Default promotions
-        bcpa.addPromotion(new Promotion("Test Promotion", new float[]{0.5f}, new int[][]{{0,9}}));
+        bcpa.addPromotion(new Promotion("Test Promotion (seats A1 to A10 half price)", new float[]{0.5f}, new int[][]{{0,9}}));
     }
 }
 
