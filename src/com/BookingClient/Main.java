@@ -359,7 +359,6 @@ public class Main {
                 case ADD_SHOW:
                     try {
                         bcpa.addShow(CLI.createShow(bcpa));
-                        System.out.println("Added show successfully!");
                     } catch (CancellationException ignored) {} // Ignored because will always move to next state
                     System.out.println("Exiting...");
                     state = state.nextState(0); // Move to next state
