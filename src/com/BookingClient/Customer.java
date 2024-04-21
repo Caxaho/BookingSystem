@@ -65,6 +65,11 @@ public class Customer extends User{
 
     public ArrayList<Booking> getBookings() { return bookings; }
 
+    /**
+     * Deletes booking using given booking ID.
+     * @param bookingID ID of booking to delete.
+     * @throws NoSuchElementException If booking ID does not exist in user's booking list.
+     */
     public void cancelBooking(int bookingID) throws NoSuchElementException {
         if (!bookings.removeIf(booking -> booking.getID() == bookingID)) {
             throw new NoSuchElementException("The 'bookingID' requested does not exist");

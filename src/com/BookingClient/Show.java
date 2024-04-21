@@ -16,13 +16,20 @@ public class Show {
     private float defaultSeatPrice = 10.0f;
     private int maxSeatsPerUser = 50;
 
+    /**
+     * Show constructor.
+     * @param name Name of show.
+     * @param time Time show will take place.
+     * @param numRows Number of rows of seats in the venue where the show is taking place.
+     * @param numCols Number of columns of seats in the venue where the show is taking place.
+     */
     public Show(String name, Calendar time, int numRows, int numCols) {
         /* Initializing Variables */
         this.name = name;
         this.time = time;
         showID = showCount;
         showCount += 1;
-        // Creating and initializing array with letter names of each row
+        /* Creating and initializing array with letter names of each row */
         String[] rowNames = new String[numCols];
         for (int i = 1; i <= numCols; i++) {
             int input = i;
@@ -35,7 +42,7 @@ public class Show {
             }
             rowNames[i-1] = output.toString();
         }
-        // Initializing all the seats
+        /* Initializing all the seats */
         seats = new Seat[numRows*numCols];
         for (int i = 0; i < numCols; i++) {
             for (int j = 0; j < numRows; j++) {
@@ -62,9 +69,13 @@ public class Show {
 
     public float getDefaultSeatPrice() { return defaultSeatPrice; }
 
+    /**
+     * Change the default seat price of all seats in the show.
+     * @param price Price to set.
+     */
     public void setDefaultSeatPrice(float price) {
         this.defaultSeatPrice = price;
-        calculateSeatPrices();
+        calculateSeatPrices(); // Recalculate seat prices.
     }
 
     public int getMaxSeatsPerUser() { return maxSeatsPerUser; }
@@ -73,15 +84,28 @@ public class Show {
 
     public Promotion getPromotion() { return promotion; }
 
+    /**
+     * Adds promotion to show.
+     * @param promotion Promotion to add to show.
+     */
     public void setPromotion(Promotion promotion) {
         this.promotion = promotion;
         calculateSeatPrices(); // Recalculate seat prices.
     }
 
+    /**
+     * Remove promotion from show.
+     */
     public void removePromotion() {
         this.promotion = defaultPromotion;
     }
 
+    /**
+     * Get seat using given seat ID.
+     * @param seatID Given seat ID.
+     * @return Seat, if found.
+     * @throws NoSuchElementException If seat not found.
+     */
     public Seat getSeat(int seatID) throws NoSuchElementException {
         for (Seat seat : seats) {
             if (seat.getID() == seatID) {
@@ -91,6 +115,12 @@ public class Show {
         throw new NoSuchElementException("The 'seatID' requested does not exist");
     }
 
+    /**
+     * Get seat using given seat name.
+     * @param seatName Given seat name.
+     * @return Seat, if found.
+     * @throws NoSuchElementException If seat not found.
+     */
     public Seat getSeat(String seatName) throws NoSuchElementException {
         for (Seat seat : seats) {
             if (seatName.equals(seat.getPos())) {
@@ -100,6 +130,10 @@ public class Show {
         throw new NoSuchElementException("The 'seatID' requested does not exist");
     }
 
+    /**
+     * Get all seats in show.
+     * @return All seats in show.
+     */
     public Seat[] getSeats() {
         return seats;
     }

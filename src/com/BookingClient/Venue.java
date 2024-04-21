@@ -29,13 +29,23 @@ public class Venue {
 
     public void addShow(Show show) { shows.add(show); }
 
+    /**
+     * Cancel show based on given show ID.
+     * @param showID Given show ID.
+     */
     public void cancelShow(int showID) {
         if (!shows.removeIf(show -> show.getID() == showID)) {
             throw new NoSuchElementException("The 'showID' does not exist");
         }
     }
 
-    public Show getShow(int showID) {
+    /**
+     * Get show based on given show ID.
+     * @param showID Given show ID.
+     * @return Show, if found.
+     * @throws NoSuchElementException If show not found.
+     */
+    public Show getShow(int showID) throws NoSuchElementException {
         for (Show show : shows) {
             if (show.getID() == showID) {
                 return show;
@@ -48,12 +58,23 @@ public class Venue {
 
     public void addPromotion(Promotion promotion) { promotions.add(promotion); }
 
-    public void removePromotion(int promotionID) {
+    /**
+     * Delete promotion using given promotion ID
+     * @param promotionID Given promotion ID.
+     * @throws NoSuchElementException If promotion attempting to be deleted does not exist.
+     */
+    public void removePromotion(int promotionID) throws NoSuchElementException {
         if (!promotions.removeIf(promotion -> promotion.getID() == promotionID)) {
             throw new NoSuchElementException("The 'promotionID' does not exist");
         }
     }
 
+    /**
+     * Get promotion based on given promotion ID.
+     * @param promotionID Given promotion ID.
+     * @return Promotion, if found.
+     * @throws NoSuchElementException If promotion not found.
+     */
     public Promotion getPromotion(int promotionID) throws NoSuchElementException {
         for (Promotion promotion : promotions) {
             if (promotion.getID() == promotionID) {
@@ -63,5 +84,9 @@ public class Venue {
         throw new NoSuchElementException("The 'promotionID' requested does not exist");
     }
 
+    /**
+     * Get all promotions.
+     * @return All promotions.
+     */
     public ArrayList<Promotion> getPromotions() { return promotions; }
 }
