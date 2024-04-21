@@ -1,6 +1,7 @@
 package com.BookingClient;
 
 import java.util.Calendar;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class Show {
@@ -10,7 +11,8 @@ public class Show {
     private int minAge;
     private Calendar time;
     private final Seat[] seats;
-    private Promotion promotion;
+    private static final Promotion defaultPromotion = new Promotion("Default", new float[]{1f}, new int[][]{{0,Integer.MAX_VALUE}});
+    private Promotion promotion = defaultPromotion;
     private float defaultSeatPrice = 10.0f;
     private int maxSeatsPerUser = 50;
 
@@ -60,7 +62,10 @@ public class Show {
 
     public float getDefaultSeatPrice() { return defaultSeatPrice; }
 
-    public void setDefaultSeatPrice(float price) { this.defaultSeatPrice = price; }
+    public void setDefaultSeatPrice(float price) {
+        this.defaultSeatPrice = price;
+        calculateSeatPrices();
+    }
 
     public int getMaxSeatsPerUser() { return maxSeatsPerUser; }
 
@@ -68,7 +73,14 @@ public class Show {
 
     public Promotion getPromotion() { return promotion; }
 
-    public void setPromotion(Promotion promotion) { this.promotion = promotion; }
+    public void setPromotion(Promotion promotion) {
+        this.promotion = promotion;
+        calculateSeatPrices(); // Recalculate seat prices.
+    }
+
+    public void removePromotion() {
+        this.promotion = defaultPromotion;
+    }
 
     public Seat getSeat(int seatID) throws NoSuchElementException {
         for (Seat seat : seats) {
@@ -90,5 +102,24 @@ public class Show {
 
     public Seat[] getSeats() {
         return seats;
+    }
+
+    /**
+     * Calculates and sets the seat prices according to the promotion applied and default seat price.
+     */
+    private void calculateSeatPrices() {
+        /* Set all seats to default price */
+        for (Seat seat : seats) {
+            seat.setPrice(defaultSeatPrice);
+        }
+        /* Set prices for seats in promotion */
+        List<int[]> seatRanges = promotion.getFullSeatRanges();
+        float[] priceModifiers = promotion.getPriceModifiers();
+        for (int i = 0; i < seatRanges.size(); i++) {
+            int[] range = seatRanges.get(i);
+            for (int j = 0; j < range.length && j < seats.length; j++) {
+                seats[j].setPrice(defaultSeatPrice*priceModifiers[i]);
+            }
+        }
     }
 }

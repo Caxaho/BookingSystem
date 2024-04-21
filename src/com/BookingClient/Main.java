@@ -134,7 +134,7 @@ public class Main {
         },
         MANAGE_SHOWS {
             @Override
-            public ProgramState nextState(int choice) {
+            public ProgramState nextState(int choice) throws IllegalArgumentException {
                 switch (choice) {
                     case 0:
                         return REMOVE_SHOW;
@@ -186,13 +186,54 @@ public class Main {
         },
         MANAGE_PROMOTIONS {
             @Override
-            public ProgramState nextState(int choice) {
-                return EXIT;
+            public ProgramState nextState(int choice) throws IllegalArgumentException {
+                switch (choice) {
+                    case 0:
+                        return APPLY_PROMOTION;
+                    case 1:
+                        return REMOVE_PROMOTION;
+                    case 2:
+                        return CREATE_PROMOTION;
+                }
+                throw new IllegalArgumentException("choice out of bounds");
             }
 
             @Override
             public ProgramState previousState() {
-                return EXIT;
+                return LOGGED_IN;
+            }
+        },
+        APPLY_PROMOTION {
+            @Override
+            public ProgramState nextState(int choice) {
+                return LOGGED_IN;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
+            }
+        },
+        REMOVE_PROMOTION {
+            @Override
+            public ProgramState nextState(int choice) {
+                return LOGGED_IN;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
+            }
+        },
+        CREATE_PROMOTION {
+            @Override
+            public ProgramState nextState(int choice) {
+                return LOGGED_IN;
+            }
+
+            @Override
+            public ProgramState previousState() {
+                return LOGGED_IN;
             }
         },
         EXIT {
@@ -206,7 +247,7 @@ public class Main {
                 throw new UnsupportedOperationException("No 'nextState' for 'EXIT' state");
             }
         };
-        public abstract ProgramState nextState(int choice);
+        public abstract ProgramState nextState(int choice) throws IllegalArgumentException;
         public abstract ProgramState previousState();
     }
 
@@ -267,7 +308,7 @@ public class Main {
                     break;
                 case SELECT_SHOW:
                     try {
-                        currentShowSelectedID = CLI.selectShow(bcpa);
+                        currentShowSelectedID = CLI.selectShow(bcpa, true);
                     } catch (ParseException | IllegalArgumentException e) {
                         System.out.println("An error occurred when parsing user input, returning to previous state.");
                         currentShowSelectedID = -1; // Setting selected Show ID to an invalid ID to force previous state.
@@ -301,20 +342,52 @@ public class Main {
                     }
                     break;
                 case REMOVE_SHOW:
-                    CLI.removeShow();
+                    try {
+                        CLI.removeShow(bcpa);
+                    } catch (RuntimeException ignored) {} // Ignored because will always return to previous state
+                    System.out.println("Exiting...");
                     state = state.nextState(0);
                     break;
                 case ADD_SHOW:
                     try {
                         bcpa.addShow(CLI.createShow(bcpa));
                         System.out.println("Added show successfully!");
-                    } catch (CancellationException e) {
-                        System.out.println("Exiting...");
-                    }
+                    } catch (CancellationException ignored) {} // Ignored because will always return to previous state
+                    System.out.println("Exiting...");
                     state = state.nextState(0);
                     break;
                 case RESCHEDULE_SHOW:
-                    CLI.rescheduleShow();
+                    try {
+                        CLI.rescheduleShow(bcpa);
+                    } catch (RuntimeException ignored) {} // Ignored because will always return to previous state
+                    System.out.println("Exiting...");
+                    state = state.nextState(0);
+                    break;
+                case MANAGE_PROMOTIONS:
+                    try {
+                        choice = CLI.managePromotions();
+                        state = choice >= 0 ? state.nextState(choice) : state.previousState();
+                    } catch (IllegalArgumentException e) {
+                        System.out.println("Invalid input, please try again!");
+                    }
+                    break;
+                case APPLY_PROMOTION:
+                    try {
+                        CLI.applyPromotion(bcpa);
+                    } catch (RuntimeException ignored) {} // Ignored because will always return to previous state
+                    System.out.println("Exiting...");
+                    state = state.nextState(0);
+                    break;
+                case CREATE_PROMOTION:
+                    CLI.createPromotion(bcpa);
+                    System.out.println("Exiting...");
+                    state = state.nextState(0);
+                    break;
+                case REMOVE_PROMOTION:
+//                    try {
+//                        CLI.removePromotion(bcpa);
+//                    }
+                    System.out.println("Exiting...");
                     state = state.nextState(0);
                     break;
                 default:
@@ -347,6 +420,8 @@ public class Main {
         calTest2 = (Calendar) calTest1.clone();
         calTest2.set(Calendar.HOUR, 19);
         venue.addShow("Test Show 2", calTest2);
+        // Default promotions
+        bcpa.addPromotion(new Promotion("Test Promotion", new float[]{0.5f}, new int[][]{{0,9}}));
     }
 }
 

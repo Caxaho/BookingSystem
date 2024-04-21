@@ -1,5 +1,6 @@
 package com.BookingClient;
 
+import java.sql.Array;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -56,7 +57,7 @@ public final class CLI {
     /**
      * Validates a date to be in the future.
      * @param date Date to validate.
-     * @return True if date is the correct format and in the future.
+     * @return True if date is the correct format (dd/MM/yyyy) and in the future.
      */
     public static boolean validFutureDate(String date) {
         // Validating date structure with regex and parsing it with the SimpleDateFormat class
@@ -76,6 +77,38 @@ public final class CLI {
             }
         }
         return false; // Returns false if 'date' given was of the wrong format, not a real date, or in the past.
+    }
+
+    /**
+     * Validates if an input String is a future date and time with the format 'dd/MM/yyyy 00:00' where '00:00' is a 24-hour time.
+     * @param dateTime Input String.
+     * @return True if valid future date and time.
+     */
+    public static boolean validFutureDateTime(String dateTime) {
+        String[] splitLine = dateTime.split("\\s");
+        if (splitLine.length != 2) { return false; } // Invalid number of entries
+        if (!validFutureDate(splitLine[0])) { return false; } // Invalid future date
+        if (!splitLine[1].matches("^([01][0-9]|2[0-3]):([0-5][0-9])$")) { return false; } // Invalid time format
+        return true;
+    }
+
+    /**
+     * Creates Calendar object if inputted String is a valid date and time (with the format 'dd/MM/yyyy 00:00'
+     * where '00:00' is a 24-hour time) in the future.
+     * @param dateTime Input String
+     * @return Calendar object with date and time set to the same as the input String (if valid format).
+     * @throws IllegalArgumentException If input String is an invalid/incorrect format.
+     */
+    public static Calendar createDateTime(String dateTime) throws IllegalArgumentException {
+        Calendar output = Calendar.getInstance();
+        if (!validFutureDateTime(dateTime)) { throw new IllegalArgumentException("Invalid date and/or time!"); }
+        String[] splitLine = dateTime.split("\\s");
+        /* Setting show time */
+        int[] splitDate = Arrays.stream(splitLine[0].split("/")).mapToInt(Integer::parseInt).toArray(); // Get array of date, month, and year
+        int[] splitTime = Arrays.stream(splitLine[1].split(":")).mapToInt(Integer::parseInt).toArray(); // Get array of hour and minute
+        output.set(splitDate[2], splitDate[1]-1, splitDate[0], splitTime[0], splitTime[1]); // Set show time
+        output.set(Calendar.SECOND, 0);
+        return output;
     }
 
     /**
@@ -302,12 +335,16 @@ public final class CLI {
     /**
      * Retrieves and validates show selection from user.
      * @param venue Venue to retrieve the shows of.
+     * @param acceptDateRange If true, it will request a date range from the user before displaying shows.
      * @return Show ID picked by the user, or -1 if 'e' is inputted.
      * @throws IllegalArgumentException On user input validation error.
      * @throws ParseException On user input parse error. The parsing occurs after validation so this exception should never occur.
      */
-    public static int selectShow(Venue venue) throws ParseException, IllegalArgumentException {
-        Calendar[] dateRange = getFutureDateRange(); // Get validated date range from user.
+    public static int selectShow(Venue venue, boolean acceptDateRange) throws ParseException, IllegalArgumentException {
+        Calendar[] dateRange = {Calendar.getInstance(), Calendar.getInstance()}; // Initialise dateRange to avoid NullPointerExceptions
+        if (acceptDateRange) {
+            dateRange = getFutureDateRange(); // Get validated date range from user.
+        }
         boolean validOption = false;
         while (!validOption) {
             printChoices(false, "exit (e)", "Please select a show: ");
@@ -315,7 +352,7 @@ public final class CLI {
             ArrayList<Show> allShows = venue.getShows(); // Get all shows in venue
             ArrayList<Show> validShows = new ArrayList<>();
             for (Show show : allShows) {
-                if (show.getTime().after(dateRange[0]) && show.getTime().before(dateRange[1])) {
+                if ((show.getTime().after(dateRange[0]) && show.getTime().before(dateRange[1])) || !acceptDateRange) {
                     validShows.add(show);
                 }
             }
@@ -667,7 +704,27 @@ public final class CLI {
         return -1; // Invalid choice
     }
 
-    public static void removeShow() {
+    /**
+     * Deletes a show for a specified venue with validated user input.
+     * @param venue Venue to remove show from.
+     * @throws RuntimeException If invalid show selection.
+     */
+    public static void removeShow(Venue venue) throws RuntimeException {
+        /* Display Options */
+        printChoices(false, "Exit (any character)");
+        /* Get show to delete */
+        int selectedShowID;
+        try {
+            selectedShowID = selectShow(venue, false);
+        } catch (ParseException | IllegalArgumentException e) {
+            System.out.println("Invalid show selection.");
+            throw new RuntimeException(e);
+        }
+        if (selectedShowID < 0) { return; } // Invalid/exit response from selectShow() so return
+
+        /* Delete show */
+        venue.getShows().removeIf(i -> i.getID() == selectedShowID);
+        System.out.println("Show deleted successfully!");
     }
 
     /**
@@ -703,16 +760,10 @@ public final class CLI {
                         showName = line; // Set show name
                         break;
                     case 1: // Date and Time of Show
-                        String[] splitLine = line.split("\\s");
-                        if (splitLine.length != 2) { break; } // Invalid number of entries
-                        if (!validFutureDate(splitLine[0])) { break; } // Invalid future date
-                        if (!splitLine[1].matches("^([01][0-9]|2[0-3]):([0-5][0-9])$")) { break; } // Invalid time format
-                        validEntry = true;
-                        /* Setting show time */
-                        int[] splitDate = Arrays.stream(splitLine[0].split("/")).mapToInt(Integer::parseInt).toArray(); // Get array of date, month, and year
-                        int[] splitTime = Arrays.stream(splitLine[1].split(":")).mapToInt(Integer::parseInt).toArray(); // Get array of hour and minute
-                        showTime.set(splitDate[2], splitDate[1]-1, splitDate[0], splitTime[0], splitTime[1]); // Set show time
-                        showTime.set(Calendar.SECOND, 0);
+                        try {
+                            showTime = createDateTime(line); // Validating and setting show time
+                            validEntry = true;
+                        } catch (IllegalArgumentException ignored) {} // Ignored so user inputs a new date and time
                         break;
                 }
                 // If valid entry, increase stage, otherwise display validation error
@@ -724,9 +775,173 @@ public final class CLI {
             }
         }
         /* Create and return show */
+        System.out.println("Added show successfully!");
         return new Show(showName, showTime, venue.getNumRows(), venue.getNumCols());
     }
 
-    public static void rescheduleShow() {
+    /**
+     * Reschedules a show from a given venue.
+     * @param venue Venue to retrieve shows from.
+     * @throws RuntimeException If invalid show selection, or invalid Date and Time inputted.
+     */
+    public static void rescheduleShow(Venue venue) throws RuntimeException {
+        /* Display Options */
+        printChoices(false, "Exit (any character)");
+        /* Get show to reschedule */
+        int selectedShowID;
+        try {
+            selectedShowID = selectShow(venue, false);
+        } catch (ParseException | IllegalArgumentException e) {
+            System.out.println("Invalid show selection.");
+            throw new RuntimeException(e);
+        }
+        if (selectedShowID < 0) { return; } // Invalid/exit response from selectShow() so return
+
+        /* Reschedule show if valid Date and Time, and then return */
+        printChoices(false, "Exit (any character)", "Please enter a new date and time for the selected show (in the format 'dd/MM/yyyy 00:00' where '00:00' is 24 hour time format):");
+        String line = input.nextLine(); // Get user input
+        try {
+            Calendar newDateTime = createDateTime(line);
+            venue.getShow(selectedShowID).setTime(newDateTime);
+            System.out.println("Rescheduled show successfully!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid date.");
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Retrieves and validates user input for selecting an option to manage the promotions.
+     * @return Choice made by user (apply promotion 'a' = 0, remove promotion 'r' = 1, create promotion 'p' = 2, exit 'e' = -1, invalid choice = -1).
+     */
+    public static int managePromotions() {
+        printChoices(true,"Apply Promotion to Show(a)", "Remove Promotion from Show(r)", "Create New Promotion(p)", "Exit (e)");
+        String line = input.nextLine(); // Get user input
+        switch (line) {
+            case "a":
+                return 0;
+            case "r":
+                return 1;
+            case "p":
+                return 2;
+            case "e":
+                return -1;
+        }
+        return -1; // Invalid choice
+    }
+
+    /**
+     * Apply a promotion to a selected show.
+     * @param venue Venue to select shows from.
+     * @throws RuntimeException If invalid show selection.
+     */
+    public static void applyPromotion(Venue venue) throws RuntimeException {
+        /* Make sure there are promotions available to apply */
+        if (venue.getPromotions().isEmpty()) {
+            System.out.println("No promotions available to apply. Please create a promotion.");
+            return;
+        }
+        /* Display Options */
+        printChoices(false, "Exit (any character)");
+        /* Get show to apply promotion to */
+        int selectedShowID;
+        try {
+            selectedShowID = selectShow(venue, false);
+        } catch (ParseException | IllegalArgumentException e) {
+            System.out.println("Invalid show selection.");
+            throw new RuntimeException(e);
+        }
+        if (selectedShowID < 0) { return; } // Invalid/exit response from selectShow() so return
+
+        /* Display Promotions and apply selection (if any) */
+        printChoices(false, "Exit (any character)", "Please select a promotion to apply:");
+        // Display Promotions
+        ArrayList<Promotion> promotions = venue.getPromotions();
+        for (int i = 0; i < promotions.size(); i++) {
+            Promotion promotion = promotions.get(i);
+            System.out.printf("(%d) Name: %s%n", i+1, promotion.getName());
+        }
+        /* Apply promotion if valid integer and then return */
+        if (input.hasNextInt()) {
+            int line = Integer.parseInt(input.nextLine());
+            if (line <= promotions.size() && line > 0) {
+                venue.getShow(selectedShowID).setPromotion(venue.getPromotion(promotions.get(line-1).getID()));
+            }
+            System.out.println("Applied promotion successfully!");
+            return;
+        }
+        input.nextLine(); //If it is not an integer, the scanner will read and dispose of the next line
+        System.out.println("Failed to apply promotion. Please try again.");
+    }
+
+    public static void createPromotion(Venue venue) {
+        /* Get Name of Promotion */
+        printChoices(true, "Exit (e)", "Please enter a name for the promotion");
+        String line = input.nextLine();
+        if (line.equals("e")) { return; }
+        String promotionName = line;
+        /* Get price modifiers/tiers */
+        ArrayList<Float> tiers = new ArrayList<>();
+        boolean acceptTiers = false;
+        while (!acceptTiers) {
+            printChoices(false, "Exit (e)", "Accept Selection (a)", "Please enter a price tier for this promotion (in the format '0.75' where this is a positive none-zero multiplier. i.e. '0.75' = 75% of the default ticket price):");
+            String currentTiers = tiers.stream().map(Object::toString).collect(Collectors.joining(","));
+            System.out.printf("Current tiers: (%s)%n", currentTiers);
+            if (input.hasNextFloat()) {
+                float tier = input.nextFloat();
+                if (tier > 0 ) {
+                    tiers.add(tier);
+                } else {
+                    System.out.println("Please enter a valid tier value.");
+                }
+            } else {
+                line = input.nextLine();
+                if (line.equals("e")) {
+                    return;
+                } else if (line.equals("a")) {
+                    if(tiers.isEmpty()) {
+                        System.out.println("Please enter a valid tier value.");
+                    } else {
+                        acceptTiers = true;
+                    }
+                } else {
+                    System.out.println("Please enter a valid option.");
+                }
+            }
+        }
+        // Convert tiers from ArrayList of floats to fixed array of floats
+        float[] fTiers = new float[tiers.size()];
+        for (int i = 0; i < tiers.size(); i++) { fTiers[i] = tiers.get(i); }
+        /* Get seat ranges */
+        int[][] seatRanges = new int[tiers.size()][2];
+        for (int i = 0; i < tiers.size(); i++) {
+            printChoices(false, "Exit (e)", "Please enter a valid seat range (inclusive) in the format '0-19'. There should be two numbers separated by a hyphen, where each number corresponds to a seat ID, with lower numbers being closer to the front. No repeats or crossovers are valid, however the seat IDs may span beyond the maximum capacity of the venue:");
+            System.out.printf("Each seat range corresponds directly to a tier you have entered. Current tier (%d/%d). Modifier: %%%f%n", i+1, tiers.size(), 100*tiers.get(i));
+            line = input.nextLine(); // User input
+            // Validation
+            if (line.equals("e")) { return; }
+            String[] splitLine = line.split("-");
+            if (splitLine.length != 2) {
+                i = -1; // Reset for loop
+            }
+            try {
+                seatRanges[i][0] = Integer.parseInt(splitLine[0]);
+                seatRanges[i][1] = Integer.parseInt(splitLine[1]);
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+                System.out.println("Invalid range entered, please try again.");
+                i = -1; // Reset for loop
+            }
+            System.out.printf("Ranges entered: %d/%d%n", i+1, tiers.size());
+        }
+        try {
+            Promotion createdPromotion = new Promotion(promotionName, fTiers, seatRanges);
+            venue.addPromotion(createdPromotion);
+            System.out.println("Successfully created promotion!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Failed to create promotion. Ensure the seat ranges do not overlap.");
+        }
+    }
+
+    public static void removePromotion(Venue venue) {
     }
 }

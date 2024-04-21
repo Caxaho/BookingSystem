@@ -54,7 +54,7 @@ public class Venue {
         }
     }
 
-    public Promotion getPromotion(int promotionID) {
+    public Promotion getPromotion(int promotionID) throws NoSuchElementException {
         for (Promotion promotion : promotions) {
             if (promotion.getID() == promotionID) {
                 return promotion;
@@ -62,4 +62,6 @@ public class Venue {
         }
         throw new NoSuchElementException("The 'promotionID' requested does not exist");
     }
+
+    public ArrayList<Promotion> getPromotions() { return promotions; }
 }

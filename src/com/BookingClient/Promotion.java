@@ -51,7 +51,7 @@ public class Promotion {
         this.priceModifiers = priceModifiers;
         this.seatRanges = seatRanges;
         this.seatRangesFull = validRangesJoined;
-        promotionID = promotionCount;
+        this.promotionID = promotionCount;
         promotionCount += 1;
     }
 
